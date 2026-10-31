@@ -24,6 +24,11 @@ ENV/
 .vscode/
 .idea/
 .codeium/
+.mcp.json
+*.mcp.json
+.cursorrules
+.windsurfrules
+.agents/
 
 # Testing and linting caches
 .pytest_cache/

@@ -158,8 +158,13 @@ Short records of decisions agreed during design. Format: context, decision, cons
 - **Consequences:** v0.1 has no MCP server; merge and MCP arrive in v0.2.
 - **Status:** Accepted.
 
+## ADR-032: PyPI name availability confirmed
+- **Context:** Package name availability and typosquatting risk must be evaluated before building.
+- **Decision:** PyPI check conducted on 2026-10-31: `swallo` is available (HTTP 404), `swallo-core` is available (HTTP 404). Note that `swallow` is already registered on PyPI. We proceed with `swallo` as planned.
+- **Status:** Accepted.
+
 ## Pending decisions
-- PyPI availability of the name `swallo`.
 - Antigravity and other target adapter details after verification.
 - Tuned default guard thresholds (breaker, token bucket, quotas, TTL), from real usage (ADR-028).
 - Per-IDE behavior: stable MCP session identifiers, workspace roots, referenced-file loading, terminal checks (ADR-029).
+

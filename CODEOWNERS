@@ -1,0 +1,12 @@
+# Default code owner
+* @raunaknayak12
+
+# Security-sensitive modules requiring maintainer review
+src/swallo/redact/ @raunaknayak12
+src/swallo/store/ledger.py @raunaknayak12
+src/swallo/repo/paths.py @raunaknayak12
+src/swallo/render/sanitize.py @raunaknayak12
+src/swallo/capture/importers/ @raunaknayak12
+src/swallo/server/guards.py @raunaknayak12
+src/swallo/store/registry.py @raunaknayak12
+src/swallo/store/signing.py @raunaknayak12
