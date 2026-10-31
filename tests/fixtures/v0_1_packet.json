@@ -1,0 +1,66 @@
+{
+  "schema_version": "0.1",
+  "id": "pkt_8c1f2a123456",
+  "created_at": "2026-10-25T10:00:00Z",
+  "project": "myapp",
+  "parent": null,
+  "merged_from": [],
+  "sources": [
+    {
+      "session_id": "s1",
+      "agent": "chatgpt",
+      "capture_method": "paste",
+      "captured_at": "2026-10-25T09:55:00Z",
+      "transcript": {
+        "object": "sha256:ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12",
+        "redacted": true
+      }
+    }
+  ],
+  "goal": {
+    "text": "Build an open-source context handoff tool"
+  },
+  "items": [
+    {
+      "id": "it_31c90000",
+      "kind": "decision",
+      "text": "Ship as a pip package with an MCP server",
+      "topic": "distribution",
+      "value": "pip+mcp",
+      "critical": false,
+      "provenance": [
+        {
+          "session_id": "s1",
+          "span": null
+        }
+      ]
+    },
+    {
+      "id": "it_77aa0000",
+      "kind": "constraint",
+      "text": "Core must run locally with no LLM key",
+      "critical": true,
+      "provenance": [
+        {
+          "session_id": "s1",
+          "span": null
+        }
+      ]
+    }
+  ],
+  "conflicts": [],
+  "repo_state": {
+    "git_commit": "abc1234",
+    "dirty": false,
+    "files": {
+      "src/app.py": "blob:9f2c1234"
+    }
+  },
+  "redaction": {
+    "count": 2,
+    "types": [
+      "api_key",
+      "email"
+    ]
+  }
+}
