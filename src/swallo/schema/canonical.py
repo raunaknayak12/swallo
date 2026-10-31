@@ -10,6 +10,7 @@ Per ADR-024 and PACKET_SCHEMA.md section 6:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import unicodedata
 
@@ -120,3 +121,79 @@ def parse_canonical_json(raw: str | bytes) -> object:
 
     # Recursively check integer bounds and string NFC normalization
     return _clean_value(parsed)
+
+
+def hashed_form(packet: dict[str, object]) -> dict[str, object]:
+    """
+    Produce the hashed form of a packet by excluding volatile fields.
+
+    Per PACKET_SCHEMA.md section 6:
+    Excludes top-level 'id', 'created_at', and every 'sources[*].captured_at'.
+    """
+    if not isinstance(packet, dict):
+        raise ValidationError(f"Expected packet dict, got {type(packet).__name__}")
+
+    out: dict[str, object] = {}
+    for k, v in packet.items():
+        if k in ("id", "created_at"):
+            continue
+        if k == "sources" and isinstance(v, list):
+            clean_sources: list[object] = []
+            for src in v:
+                if isinstance(src, dict):
+                    clean_src = {sk: sv for sk, sv in src.items() if sk != "captured_at"}
+                    clean_sources.append(clean_src)
+                else:
+                    clean_sources.append(src)
+            out[k] = clean_sources
+        else:
+            out[k] = v
+    return out
+
+
+def packet_hash(packet: dict[str, object]) -> str:
+    """
+    Compute sha256 hex digest of the canonical bytes of the packet's hashed form.
+    """
+    h_form = hashed_form(packet)
+    canonical_bytes = canonicalize(h_form)
+    digest = hashlib.sha256(canonical_bytes).hexdigest()
+    return f"sha256:{digest}"
+
+
+def derive_packet_id(hash_: str, taken: set[str] | None = None) -> str:
+    """
+    Derive packet ID: 'pkt_' + first 12 hex characters of the hash.
+
+    Extends by 2 characters on collision with a different hash in the store.
+    """
+    raw_hex = hash_.removeprefix("sha256:")
+    if len(raw_hex) < 12:
+        raise ValidationError(f"Invalid packet hash length: {hash_!r}")
+
+    length = 12
+    candidate = f"pkt_{raw_hex[:length]}"
+    if taken is not None:
+        while candidate in taken and length + 2 <= len(raw_hex):
+            length += 2
+            candidate = f"pkt_{raw_hex[:length]}"
+    return candidate
+
+
+def derive_item_id(kind: str, text: str, taken: set[str] | None = None) -> str:
+    """
+    Derive item ID: 'it_' + first 8 hex of SHA-256(kind, NUL, NFC text).
+
+    Extends by 2 characters on collision within a packet.
+    """
+    nfc_text = unicodedata.normalize("NFC", text)
+    payload = f"{kind}\0{nfc_text}".encode()
+    digest = hashlib.sha256(payload).hexdigest()
+
+    length = 8
+    candidate = f"it_{digest[:length]}"
+    if taken is not None:
+        while candidate in taken and length + 2 <= len(digest):
+            length += 2
+            candidate = f"it_{digest[:length]}"
+    return candidate
