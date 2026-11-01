@@ -16,8 +16,9 @@ from swallo.repo.paths import resolve_in_root, to_repo_relative
 
 
 def test_resolve_valid_nested_path(tmp_path: Path) -> None:
-    target = resolve_in_root(tmp_path, "docs/subfolder/file.md")
-    assert target.is_relative_to(tmp_path)
+    real_root = tmp_path.resolve()
+    target = resolve_in_root(real_root, "docs/subfolder/file.md")
+    assert target.is_relative_to(real_root)
     assert target.name == "file.md"
 
 
@@ -103,7 +104,7 @@ def test_to_repo_relative(tmp_path: Path) -> None:
 )
 def test_property_safe_paths_stay_inside_root(components: list[str]) -> None:
     with tempfile.TemporaryDirectory() as td:
-        root = Path(td)
+        root = Path(td).resolve()
         rel_path = "/".join(components)
         resolved = resolve_in_root(root, rel_path)
         assert resolved.is_relative_to(root)
