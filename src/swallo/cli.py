@@ -115,6 +115,20 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {cmd}")
         return 0
 
+    sub_args = list(args.subcommand_args or [])
+    if args.json and "--json" not in sub_args:
+        sub_args.append("--json")
+
+    if subcommand == "init":
+        from swallo.commands.init import run_init
+
+        return run_init(sub_args)
+
+    if subcommand == "doctor":
+        from swallo.commands.doctor import run_doctor
+
+        return run_doctor(sub_args)
+
     # Unknown subcommand check with close-match suggestion
     if subcommand not in KNOWN_COMMANDS:
         suggestions = difflib.get_close_matches(subcommand, KNOWN_COMMANDS, n=3, cutoff=0.5)

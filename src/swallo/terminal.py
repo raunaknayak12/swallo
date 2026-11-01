@@ -67,6 +67,13 @@ def confirm_on_terminal(
             return default
         return answer in ("y", "yes")
 
+    # If sys.stdin is not a tty, fail immediately rather than blocking on headless consoles
+    if not sys.stdin.isatty():
+        raise UsageError(
+            "Interactive human approval required, but controlling terminal is not available "
+            "(input is piped or environment is headless)."
+        )
+
     # Case 2: Controlling terminal on Windows (CONIN$ / CONOUT$)
     if sys.platform == "win32":
         try:
