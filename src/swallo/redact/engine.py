@@ -146,3 +146,4 @@ class RedactionEngine:
             findings=findings,
             redacted_count=len(non_overlapping),
         )
+

@@ -61,3 +61,4 @@ class EntropyDetector:
                     matched_text=token,
                     severity="high" if ent >= 4.8 else "medium",
                 )
+

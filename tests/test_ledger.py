@@ -110,3 +110,4 @@ def test_ledger_list_approvals_with_validity(tmp_path: Path) -> None:
     valid_map = {item["packet_hash"]: item["valid"] for item in items}
     assert valid_map[h1] is True
     assert valid_map[h2] is False
+

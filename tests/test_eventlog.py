@@ -105,3 +105,4 @@ def test_eventlog_wrong_key_fails_verification(tmp_path: Path) -> None:
     errors = verify(conn, wrong_key)
     assert len(errors) == 1
     assert "HMAC mismatch" in errors[0]
+

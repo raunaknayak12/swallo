@@ -40,3 +40,4 @@ class DenylistDetector:
                     matched_text=m.group(0),
                     severity="high",
                 )
+

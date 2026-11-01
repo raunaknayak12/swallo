@@ -129,6 +129,26 @@ def main(argv: list[str] | None = None) -> int:
 
         return run_doctor(sub_args)
 
+    if subcommand == "save":
+        from swallo.commands.save import run_save
+
+        return run_save(sub_args)
+
+    if subcommand == "show":
+        from swallo.commands.show import run_show
+
+        return run_show(sub_args)
+
+    if subcommand == "approve":
+        from swallo.commands.approve import run_approve
+
+        return run_approve(sub_args)
+
+    if subcommand == "log":
+        from swallo.commands.log import run_log
+
+        return run_log(sub_args)
+
     # Unknown subcommand check with close-match suggestion
     if subcommand not in KNOWN_COMMANDS:
         suggestions = difflib.get_close_matches(subcommand, KNOWN_COMMANDS, n=3, cutoff=0.5)
