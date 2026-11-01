@@ -56,3 +56,10 @@ class IntegrityError(SwalloError):
     """Integrity failure in event log chain or store (exit code 8)."""
 
     exit_code = 8
+
+
+class SecurityError(SwalloError):
+    """Security boundary violation, traversal or forged approval (exit code 9)."""
+
+    exit_code = 9
+
