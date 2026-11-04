@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from swallo.cli import main
 
 
@@ -266,3 +268,108 @@ def test_send_adds_to_gitignore(tmp_path: Path) -> None:
     gitignore = project_root / ".gitignore"
     assert gitignore.exists()
     assert ".swallo/" in gitignore.read_text(encoding="utf-8")
+
+
+def test_send_warns_if_swallo_files_staged(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    store_dir = tmp_path / "warn_store"
+    project_root = tmp_path / "warn_repo"
+    project_root.mkdir()
+
+    # Initialize a real git repo in project_root to test staged warnings
+    import shutil
+    import subprocess
+
+    git_bin = shutil.which("git")
+    if not git_bin:
+        pytest.skip("git binary not available")
+
+    subprocess.run(  # noqa: S603
+        [git_bin, "init"], cwd=project_root, check=True, capture_output=True, timeout=10
+    )
+    subprocess.run(  # noqa: S603
+        [git_bin, "config", "user.name", "TestUser"],
+        cwd=project_root,
+        check=True,
+        capture_output=True,
+        timeout=10,
+    )
+    subprocess.run(  # noqa: S603
+        [git_bin, "config", "user.email", "test@example.com"],
+        cwd=project_root,
+        check=True,
+        capture_output=True,
+        timeout=10,
+    )
+
+    assert main(["init", "--store", str(store_dir), "--project", "WarnApp"]) == 0
+    sample_packet = {
+        "schema_version": "0.1",
+        "project": "WarnApp",
+        "created_at": "2026-11-04T00:00:00Z",
+        "sources": [
+            {
+                "session_id": "s_warn",
+                "agent": "user",
+                "capture_method": "paste",
+                "captured_at": "2026-11-04T00:00:00Z",
+            }
+        ],
+        "goal": {"text": "Check staging warning"},
+        "items": [],
+    }
+    pkt_file = tmp_path / "pkt.json"
+    pkt_file.write_text(json.dumps(sample_packet), encoding="utf-8")
+    assert main(["save", str(pkt_file), "--store", str(store_dir)]) == 0
+
+    from swallo.store.db import get_connection
+
+    conn = get_connection(store_dir / "swallo.db")
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM packets LIMIT 1")
+    pkt_id = str(cur.fetchone()[0])
+    conn.close()
+
+    assert main(["approve", pkt_id, "--target", "chat", "--force", "--store", str(store_dir)]) == 0
+
+    # Stage a fake swallo file
+    fake_swallo = project_root / ".swallo" / "fake.txt"
+    fake_swallo.parent.mkdir(parents=True, exist_ok=True)
+    fake_swallo.write_text("should not be tracked", encoding="utf-8")
+    subprocess.run(  # noqa: S603
+        [git_bin, "add", "-f", ".swallo"], cwd=project_root, check=True, timeout=10
+    )
+
+    capsys.readouterr()
+    res = main([
+        "send",
+        pkt_id,
+        "--to",
+        "chat",
+        "--store",
+        str(store_dir),
+        "--project-root",
+        str(project_root),
+    ])
+    assert res == 0
+    captured = capsys.readouterr()
+    assert "Warning:" in captured.err
+    assert "swallo file(s) are staged in git" in captured.err
+
+
+def test_adapter_write_confinement(tmp_path: Path) -> None:
+    """Verify adapters reject path traversal or malicious packet ID escaping root."""
+    from swallo.adapters.claude_code import ClaudeCodeAdapter
+    from swallo.errors import SecurityError
+
+    adapter = ClaudeCodeAdapter()
+    malicious_packet = {
+        "id": "../escaped_packet",
+        "goal": {"text": "Escape test"},
+        "items": [],
+    }
+
+    with pytest.raises(SecurityError):
+        adapter.deliver(tmp_path, malicious_packet)
+

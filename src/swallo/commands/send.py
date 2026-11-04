@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -40,6 +42,37 @@ def ensure_swallo_gitignored(project_root: Path) -> None:
             gitignore_path.write_text(content + separator + ".swallo/\n", encoding="utf-8")
     else:
         gitignore_path.write_text(".swallo/\n", encoding="utf-8")
+
+
+def check_staged_swallo_files(project_root: Path) -> list[str]:
+    """Check if any swallo files are staged in the git index."""
+    git_dir = project_root / ".git"
+    if not git_dir.exists():
+        return []
+
+    git_bin = shutil.which("git")
+    if not git_bin:
+        return []
+
+    try:
+        proc = subprocess.run(  # noqa: S603
+            [git_bin, "status", "--porcelain"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if proc.returncode != 0:
+            return []
+    except Exception:
+        return []
+
+    staged_swallo: list[str] = []
+    for line in proc.stdout.splitlines():
+        if len(line) >= 3 and line[0] in ("A", "M", "R", "C") and ".swallo" in line:
+            staged_swallo.append(line[3:].strip())
+
+    return staged_swallo
 
 
 def run_send(argv: list[str]) -> int:
@@ -205,6 +238,15 @@ def run_send(argv: list[str]) -> int:
     # Ensure .swallo/ is gitignored
     ensure_swallo_gitignored(project_root)
 
+    # Warn if swallo files are staged in git
+    staged_swallo = check_staged_swallo_files(project_root)
+    if staged_swallo and not args.json:
+        warn_msg = (
+            f"Warning: {len(staged_swallo)} swallo file(s) are staged in git "
+            f"({', '.join(staged_swallo[:3])}). Swallo data should remain untracked."
+        )
+        print(warn_msg, file=sys.stderr)
+
     try:
         delivery = adapter.deliver(project_root, packet_data, token_budget=args.budget)
     except SwalloError as s_err:
@@ -224,7 +266,7 @@ def run_send(argv: list[str]) -> int:
         detail=f"Delivered {pkt_id} to {delivery.handoff_path}",
     )
 
-    result_data = {
+    result_data: dict[str, Any] = {
         "status": "delivered",
         "target": delivery.target,
         "packet_id": delivery.packet_id,
@@ -234,6 +276,8 @@ def run_send(argv: list[str]) -> int:
         "stub_hash": delivery.stub_hash,
         "tokens": delivery.token_count,
     }
+    if staged_swallo:
+        result_data["warnings"] = [f"Staged swallo files: {', '.join(staged_swallo)}"]
 
     if args.json:
         print(json.dumps(result_data, indent=2))
