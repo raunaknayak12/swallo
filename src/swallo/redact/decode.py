@@ -183,7 +183,9 @@ class OpaqueBlobDetector:
     def __init__(self, min_length: int = 60, min_entropy: float = 4.5) -> None:
         self.min_length = min_length
         self.min_entropy = min_entropy
-        self._blob_pattern = re.compile(rf"\b[A-Za-z0-9+/=_-]{{{self.min_length},}}\b")
+        self._blob_pattern = re.compile(
+            rf"(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/=_-]{{{self.min_length},}}(?![A-Za-z0-9+/=_-])"
+        )
 
     def scan(self, text: str) -> Iterable[Finding]:
         if not text:

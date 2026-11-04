@@ -8,6 +8,8 @@ import base64
 import binascii
 import secrets
 
+import pytest
+
 from swallo.redact.decode import DecodedVariantDetector, OpaqueBlobDetector
 from swallo.redact.patterns import PatternDetector
 
@@ -99,3 +101,15 @@ def test_opaque_blob_detector() -> None:
     # Normal text should NOT trigger opaque blob
     normal_text = "This is a standard English sentence of reasonable length describing software."
     assert list(detector.scan(normal_text)) == []
+
+
+@pytest.mark.parametrize("prefix", ["-", "+", "/", "_", "a"])
+@pytest.mark.parametrize("suffix", ["-", "+", "/", "_", "=", "z"])
+def test_opaque_blob_boundary_characters(prefix: str, suffix: str) -> None:
+    detector = OpaqueBlobDetector(min_length=60, min_entropy=4.5)
+    middle = secrets.token_urlsafe(60)
+    blob = f"{prefix}{middle}{suffix}"
+    text = f"Payload: {blob} end."
+    findings = list(detector.scan(text))
+    assert len(findings) == 1
+    assert findings[0].matched_text == blob
