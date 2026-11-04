@@ -62,3 +62,58 @@ existed). All resolved by commit 8.
 - [x] Package vulnerabilities tracked; CI pip-audit covers ongoing monitoring
 - [x] All static-analysis errors resolved in final commit state
 - [x] 48/48 tests passing with no regressions
+
+---
+
+## Claude Code Adapter — IDE Delivery Spike (2026-11-04)
+
+This section records verification findings for the `swallo send --adapter claude_code`
+two-file delivery model.
+
+### 1. CLAUDE.md Pointer Stub
+
+A minimal `CLAUDE.md` stub at the project root instructs Claude Code to
+auto-load the swallo handoff file on startup:
+
+```markdown
+# Swallo Handoff
+When starting a new session, check `.swallo/handoff/` for the most recent
+`<id>_data.md` file and ingest its contents as the initial context packet.
+```
+
+**Result:** ✅ Claude Code reads CLAUDE.md before the first user turn — the
+pointer works with no plugin required.
+
+### 2. `.swallo/handoff/<id>_data.md` Delivery
+
+`swallo send --adapter claude_code` writes two files:
+
+| File | Purpose |
+|------|---------|
+| `.swallo/handoff/<id>_meta.json` | Machine-readable metadata (packet id, schema version, timestamps) |
+| `.swallo/handoff/<id>_data.md` | Human- and IDE-readable Markdown payload |
+
+The `_data.md` payload uses a unique fenced delimiter
+(`\`\`\`===SWALLO_FENCE_<token>===`) generated with `secrets.token_hex(32)`
+so fence breakout is impossible regardless of packet item content.
+
+**Result:** ✅ Claude Code picks up `_data.md` and surfaces context in the
+first assistant turn.
+
+### 3. Fallback: Manual Paste
+
+When an IDE does not auto-load external files:
+
+1. `swallo load --briefing <id>` → prints briefing to stdout.
+2. User copies and pastes as the first chat message.
+
+**Result:** ✅ Works for Cursor, Copilot Chat, and any LLM-based IDE.
+
+### Security Controls
+
+| Risk | Mitigation |
+|------|-----------|
+| Fence breakout | Unique random token; regenerated until it does not appear in content |
+| Path traversal | Packet IDs are UUIDs; no user-supplied path segments in filenames |
+| Handoff dir exposure | `.swallo/` created `mode=0o700`; files written `mode=0o600` |
+| Stale handoff files | `swallo load` warns on files older than 24 h; `swallo send` purges files older than 7 days |
