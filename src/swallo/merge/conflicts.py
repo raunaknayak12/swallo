@@ -52,11 +52,18 @@ class Conflict:
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serialisable dict representation."""
+        reason_map = {
+            "value_clash": "same_topic_different_value",
+            "override_language": "override_language",
+        }
         return {
             "id": self.id,
+            "items": self.item_ids,
             "item_ids": self.item_ids,
-            "reason": self.reason,
+            "reason": reason_map.get(self.kind, "same_topic_different_value"),
+            "description": self.reason,
             "kind": self.kind,
+            "status": "unresolved",
         }
 
 
@@ -148,7 +155,7 @@ class RuleBasedConflictDetector:
             topic = str(item.get("topic", "")).strip()
             if not topic:
                 continue
-            value = str(item.get("value", ""))
+            value = str(item.get("value") or item.get("text") or "")
             iid = RuleBasedConflictDetector._item_id(item, idx)
             by_topic.setdefault(topic, []).append((iid, normalized_hash(value), value))
 
@@ -195,7 +202,7 @@ class RuleBasedConflictDetector:
         """Flag items that contain override/superseding language."""
         conflicts: list[Conflict] = []
         for idx, item in enumerate(items):
-            value = str(item.get("value", ""))
+            value = str(item.get("value") or item.get("text") or "")
             if _has_override_language(value):
                 iid = RuleBasedConflictDetector._item_id(item, idx)
                 snippet = value[:80].replace("\n", " ")

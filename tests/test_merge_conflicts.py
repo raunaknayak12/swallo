@@ -159,7 +159,15 @@ class TestConflictDataclass:
             kind="value_clash",
         )
         d = c.as_dict()
-        assert set(d.keys()) == {"id", "item_ids", "reason", "kind"}
+        assert set(d.keys()) == {
+            "id",
+            "items",
+            "item_ids",
+            "reason",
+            "description",
+            "kind",
+            "status",
+        }
 
     def test_as_dict_values(self) -> None:
         c = Conflict(id="x", item_ids=["a"], reason="r", kind="override_language")

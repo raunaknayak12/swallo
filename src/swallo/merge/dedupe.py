@@ -107,7 +107,7 @@ def deduplicate_items(items: list[Item]) -> list[Item]:
     result: list[Item] = []
 
     for item in items:
-        value = str(item.get("value", ""))
+        value = str(item.get("value") or item.get("text") or "")
         h = normalized_hash(value)
 
         if h in seen:
@@ -147,11 +147,11 @@ def find_near_duplicates(
     n = len(items)
 
     for i in range(n):
-        value_i = str(items[i].get("value", ""))
+        value_i = str(items[i].get("value") or items[i].get("text") or "")
         hash_i = normalized_hash(value_i)
 
         for j in range(i + 1, n):
-            value_j = str(items[j].get("value", ""))
+            value_j = str(items[j].get("value") or items[j].get("text") or "")
             hash_j = normalized_hash(value_j)
 
             # Skip exact duplicates — handled by deduplicate_items

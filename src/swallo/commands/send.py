@@ -158,67 +158,91 @@ def run_send(argv: list[str]) -> int:
     key_bytes = get_or_create_local_key(key_path)
     project_root = (args.project_root or Path.cwd()).resolve()
 
-    # For v0 Phase 5 first half, process the specified packet
-    packet_id = args.packet_ids[0]
-
     cursor = conn.cursor()
+    packets_data: list[dict[str, Any]] = []
+    pkt_hashes: list[str] = []
     try:
-        cursor.execute(
-            """
-            SELECT id, hash, body
-            FROM packets WHERE id = ? OR hash = ?
-            """,
-            (packet_id, packet_id),
-        )
-        row = cursor.fetchone()
+        for packet_id in args.packet_ids:
+            cursor.execute(
+                """
+                SELECT id, hash, body
+                FROM packets WHERE id = ? OR hash = ?
+                """,
+                (packet_id, packet_id),
+            )
+            row = cursor.fetchone()
+            if not row:
+                err_msg = f"Packet '{packet_id}' not found in store."
+                if args.json:
+                    print(json.dumps({"error": err_msg, "exit_code": 2}))
+                else:
+                    print(f"Error: {err_msg}", file=sys.stderr)
+                return 2
+
+            p_id, p_hash, body_blob = row[0], row[1], row[2]
+
+            approved = is_approved(conn, key_bytes, p_hash, adapter.name)
+            if not approved and adapter.name == "claude-code":
+                approved = is_approved(conn, key_bytes, p_hash, "claude_code")
+
+            if not approved:
+                not_approved_err = NotApprovedError(
+                    f"Packet '{p_id}' is not approved for target '{adapter.name}'. "
+                    f"Run 'swallo approve {p_id} --target {adapter.name}' first."
+                )
+                if args.json:
+                    print(
+                        json.dumps(
+                            {
+                                "error": str(not_approved_err),
+                                "exit_code": not_approved_err.exit_code,
+                            }
+                        )
+                    )
+                else:
+                    print(f"Error: {not_approved_err}", file=sys.stderr)
+                return int(not_approved_err.exit_code)
+
+            try:
+                raw_parsed = parse_canonical_json(body_blob)
+                if not isinstance(raw_parsed, dict):
+                    raise ValueError("Expected dictionary object for packet body")
+                p_data: dict[str, Any] = dict(raw_parsed)
+                p_data["id"] = p_id
+                packets_data.append(p_data)
+                pkt_hashes.append(p_hash)
+            except Exception as exc:
+                err_msg = f"Corrupted packet body: {exc}"
+                if args.json:
+                    print(json.dumps({"error": err_msg, "exit_code": 3}))
+                else:
+                    print(f"Error: {err_msg}", file=sys.stderr)
+                return 3
     finally:
         cursor.close()
 
-    if not row:
-        err_msg = f"Packet '{packet_id}' not found in store."
-        if args.json:
-            print(json.dumps({"error": err_msg, "exit_code": 2}))
-        else:
-            print(f"Error: {err_msg}", file=sys.stderr)
-        return 2
+    if len(packets_data) > 1:
+        from swallo.merge.resolve import merge_packets
 
-    pkt_id, pkt_hash, body_blob = row[0], row[1], row[2]
-
-    # Check approval in ledger (support canonical name and common aliases like claude_code)
-    approved = is_approved(conn, key_bytes, pkt_hash, adapter.name)
-    if not approved and adapter.name == "claude-code":
-        approved = is_approved(conn, key_bytes, pkt_hash, "claude_code")
-
-    if not approved:
-        not_approved_err = NotApprovedError(
-            f"Packet '{pkt_id}' is not approved for target '{adapter.name}'. "
-            f"Run 'swallo approve {pkt_id} --target {adapter.name}' first."
-        )
-        if args.json:
-            print(
-                json.dumps(
-                    {"error": str(not_approved_err), "exit_code": not_approved_err.exit_code}
-                )
+        merged = merge_packets(packets_data)
+        if merged.get("conflicts") and not args.allow_unresolved:
+            n_conflicts = len(merged["conflicts"])
+            err_msg = (
+                f"Cannot send merged packet: {n_conflicts} unresolved conflict(s) detected. "
+                "Resolve them first with 'swallo resolve' or pass --allow-unresolved."
             )
-        else:
-            print(f"Error: {not_approved_err}", file=sys.stderr)
-        return int(not_approved_err.exit_code)
-
-    try:
-        raw_parsed = parse_canonical_json(body_blob)
-        if not isinstance(raw_parsed, dict):
-            raise ValueError("Expected dictionary object for packet body")
-        packet_data: dict[str, Any] = dict(raw_parsed)
-    except Exception as exc:
-        err_msg = f"Corrupted packet body: {exc}"
-        if args.json:
-            print(json.dumps({"error": err_msg, "exit_code": 3}))
-        else:
-            print(f"Error: {err_msg}", file=sys.stderr)
-        return 3
-
-    # Add id to packet data if missing
-    packet_data["id"] = pkt_id
+            if args.json:
+                print(json.dumps({"error": err_msg, "exit_code": 1}))
+            else:
+                print(f"Error: {err_msg}", file=sys.stderr)
+            return 1
+        packet_data = merged
+        pkt_id = str(merged["id"])
+        pkt_hash = "+".join(pkt_hashes)
+    else:
+        packet_data = packets_data[0]
+        pkt_id = str(packets_data[0]["id"])
+        pkt_hash = pkt_hashes[0]
 
     if args.dry_run:
         dry_result = {
