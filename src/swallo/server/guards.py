@@ -16,6 +16,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from swallo.errors import (
     DraftQuotaExceededError,
@@ -221,6 +222,47 @@ class CircuitBreaker:
                 f"MCP session '{session_id}' paused by circuit breaker until {until}. "
                 "Use 'swallo breaker reset' via CLI terminal to clear."
             )
+
+    @staticmethod
+    def get_status(
+        conn: sqlite3.Connection,
+        session_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return status records for all or a specific session."""
+        cursor = conn.cursor()
+        try:
+            if session_id:
+                cursor.execute(
+                    "SELECT session_id, blocked_count, window_start, tripped_until "
+                    "FROM breaker WHERE session_id = ?",
+                    (session_id,),
+                )
+            else:
+                cursor.execute(
+                    "SELECT session_id, blocked_count, window_start, tripped_until "
+                    "FROM breaker ORDER BY session_id ASC"
+                )
+            rows = cursor.fetchall()
+            results: list[dict[str, Any]] = []
+            now = datetime.now(UTC)
+            for r in rows:
+                sid, count, w_start, tripped_until = str(r[0]), int(r[1]), str(r[2]), r[3]
+                is_tripped = False
+                if tripped_until:
+                    try:
+                        is_tripped = now < datetime.fromisoformat(str(tripped_until))
+                    except (ValueError, TypeError):
+                        is_tripped = False
+                results.append({
+                    "session_id": sid,
+                    "blocked_count": count,
+                    "window_start": w_start,
+                    "tripped_until": str(tripped_until) if tripped_until else None,
+                    "is_tripped": is_tripped,
+                })
+            return results
+        finally:
+            cursor.close()
 
     @staticmethod
     def reset(conn: sqlite3.Connection, session_id: str | None = None) -> int:

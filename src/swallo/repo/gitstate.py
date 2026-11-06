@@ -43,6 +43,29 @@ def is_git_repository(cwd: Path | str) -> bool:
         return False
 
 
+def get_repo_root(cwd: Path | str) -> Path | None:
+    """Return top-level root path of the git repository, or None."""
+    git_bin = _get_git_binary()
+    if not git_bin:
+        return None
+    try:
+        res = subprocess.run(  # noqa: S603
+            [git_bin, "rev-parse", "--show-toplevel"],
+            timeout=30,
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0:
+            top = res.stdout.strip()
+            if top:
+                return Path(top).resolve()
+    except (subprocess.SubprocessError, FileNotFoundError, PermissionError):
+        pass
+    return None
+
+
 def get_git_commit(cwd: Path | str) -> str | None:
     """Return the current HEAD commit hash, or None if unavailable."""
     git_bin = _get_git_binary()
