@@ -11,13 +11,16 @@ from swallo.server.guards import (
     enforce_stale_policy,
     verify_project_registered,
 )
+from swallo.server.mcp_server import SwalloService, create_mcp_server
 
 __all__ = [
     "CircuitBreaker",
     "DraftQuotaManager",
     "RateLimitResult",
     "RateLimiter",
+    "SwalloService",
     "check_deduplication",
+    "create_mcp_server",
     "enforce_stale_policy",
     "verify_project_registered",
 ]
