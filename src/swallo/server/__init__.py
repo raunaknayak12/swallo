@@ -7,6 +7,9 @@ from swallo.server.guards import (
     DraftQuotaManager,
     RateLimiter,
     RateLimitResult,
+    check_deduplication,
+    enforce_stale_policy,
+    verify_project_registered,
 )
 
 __all__ = [
@@ -14,4 +17,7 @@ __all__ = [
     "DraftQuotaManager",
     "RateLimitResult",
     "RateLimiter",
+    "check_deduplication",
+    "enforce_stale_policy",
+    "verify_project_registered",
 ]

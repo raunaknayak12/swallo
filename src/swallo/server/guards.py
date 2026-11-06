@@ -15,8 +15,15 @@ import math
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
-from swallo.errors import DraftQuotaExceededError, SessionPausedError
+from swallo.errors import (
+    DraftQuotaExceededError,
+    SessionPausedError,
+    StaleContextError,
+    UnregisteredProjectError,
+)
+from swallo.repo.staleness import StalenessReport
 
 
 @dataclass(frozen=True)
@@ -316,3 +323,84 @@ class DraftQuotaManager:
             return cursor.rowcount
         finally:
             cursor.close()
+
+
+def verify_project_registered(
+    conn: sqlite3.Connection,
+    project_name_or_path: str,
+) -> tuple[str, Path]:
+    """
+    Verify project registration against the projects table (ADR-029, F20).
+    Rejects unregistered projects with UnregisteredProjectError.
+    Returns (registered_project_name, registered_root_path).
+    """
+    cursor = conn.cursor()
+    try:
+        norm_path = str(Path(project_name_or_path).resolve())
+        cursor.execute(
+            """
+            SELECT root_path, name
+            FROM projects
+            WHERE root_path = ? OR name = ?
+            """,
+            (norm_path, project_name_or_path),
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise UnregisteredProjectError(
+                f"Project '{project_name_or_path}' is not registered in the swallo store. "
+                "Run 'swallo init' in the project directory to register it."
+            )
+        root_path, name = Path(str(row[0])), str(row[1])
+        return name, root_path
+    finally:
+        cursor.close()
+
+
+def check_deduplication(
+    conn: sqlite3.Connection,
+    project: str,
+    packet_hash: str,
+) -> str | None:
+    """
+    Check if an identical packet already exists in the project (ADR-012, F19).
+    Returns existing packet ID if found, otherwise None.
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT id FROM packets WHERE project = ? AND hash = ?",
+            (project, packet_hash),
+        )
+        row = cursor.fetchone()
+        return str(row[0]) if row else None
+    finally:
+        cursor.close()
+
+
+def enforce_stale_policy(
+    report: StalenessReport,
+    policy: str = "block",
+) -> list[str]:
+    """
+    Enforce stale context policy for MCP load operations (ADR-028, F18).
+    If critical drift exists and policy is 'block', raises StaleContextError.
+    Otherwise returns warnings list.
+    """
+    if not report.is_stale:
+        return []
+
+    if report.acknowledged:
+        return [f"Notice: stale context acknowledged for drifted files: {report.drifted_files}"]
+
+    if report.is_critical:
+        if policy == "block":
+            raise StaleContextError(
+                f"Stale context blocked: critical drift detected in {report.drifted_files}. "
+                "Use 'swallo approve --ack-stale' or sync your repository before delivery."
+            )
+        return [
+            f"Warning: critical drift detected in {report.drifted_files} without acknowledgment."
+        ]
+
+    return []
