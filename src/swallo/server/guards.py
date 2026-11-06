@@ -165,6 +165,16 @@ class CircuitBreaker:
 
             if row is None:
                 new_count = 1
+                if new_count >= self.threshold:
+                    trip_time = (now + self.window_delta).isoformat()
+                    cursor.execute(
+                        """
+                        INSERT INTO breaker (session_id, blocked_count, window_start, tripped_until)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (session_id, new_count, now_iso, trip_time),
+                    )
+                    return new_count, True
                 cursor.execute(
                     """
                     INSERT INTO breaker (session_id, blocked_count, window_start, tripped_until)
