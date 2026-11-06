@@ -63,3 +63,26 @@ class SecurityError(SwalloError):
 
     exit_code = 9
 
+
+class RateLimitedError(SwalloError):
+    """Rate limit exceeded for MCP session (exit code 10)."""
+
+    exit_code = 10
+
+
+class SessionPausedError(SwalloError):
+    """MCP session paused by circuit breaker after repeated blocked saves (exit code 11)."""
+
+    exit_code = 11
+
+
+class DraftQuotaExceededError(SwalloError):
+    """Draft count or byte storage quota exceeded for project (exit code 12)."""
+
+    exit_code = 12
+
+
+class UnregisteredProjectError(SwalloError):
+    """Project root is not registered in the swallo store (exit code 13)."""
+
+    exit_code = 13
