@@ -17,6 +17,10 @@ from pathlib import Path
 
 from swallo.config import get_store_dir
 from swallo.errors import UsageError
+from swallo.repo.gitstate import get_repo_root
+from swallo.repo.staleness import check_staleness, record_stale_ack
+from swallo.schema.canonical import parse_canonical_json
+from swallo.schema.models import Packet
 from swallo.store.db import get_connection, get_or_create_local_key
 from swallo.store.ledger import approve
 from swallo.terminal import confirm_on_terminal
@@ -40,6 +44,16 @@ def run_approve(argv: list[str]) -> int:
         action="store_true",
         help="Bypass interactive terminal confirmation.",
     )
+    parser.add_argument(
+        "--ack-stale",
+        action="store_true",
+        help="Acknowledge repository staleness/drift and record cryptographic acknowledgment.",
+    )
+    parser.add_argument(
+        "--accept-untrusted",
+        action="store_true",
+        help="Accept and approve an untrusted or externally imported packet.",
+    )
     parser.add_argument("--store", type=Path, default=None, help="Store directory override.")
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON.")
 
@@ -59,7 +73,7 @@ def run_approve(argv: list[str]) -> int:
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT id, hash, project FROM packets WHERE id = ? OR hash = ?",
+            "SELECT id, hash, project, body FROM packets WHERE id = ? OR hash = ?",
             (args.packet_id, args.packet_id),
         )
         row = cursor.fetchone()
@@ -69,7 +83,7 @@ def run_approve(argv: list[str]) -> int:
     if not row:
         raise UsageError(f"Packet '{args.packet_id}' not found in store.")
 
-    pkt_id, pkt_hash, project = row[0], row[1], row[2]
+    pkt_id, pkt_hash, project, body_raw = row[0], row[1], row[2], row[3]
 
     # 2. Terminal Confirmation check (ADR-007, F21)
     if not args.force:
@@ -88,13 +102,36 @@ def run_approve(argv: list[str]) -> int:
     # 3. Write approval to cryptographic ledger
     mac = approve(conn, key_bytes, pkt_hash, args.target)
 
-    result = {
+    # 4. Optional staleness acknowledgment
+    ack_mac: str | None = None
+    if args.ack_stale:
+        repo_root = get_repo_root(Path.cwd()) or Path.cwd().resolve()
+        try:
+            body_dict = parse_canonical_json(body_raw)
+            if isinstance(body_dict, dict):
+                packet = Packet.model_validate(body_dict)
+                report = check_staleness(packet, repo_root, conn, key_bytes)
+                if report.head_commit and report.drift_hash:
+                    ack_mac = record_stale_ack(
+                        conn,
+                        key_bytes,
+                        pkt_hash,
+                        report.head_commit,
+                        report.drift_hash,
+                    )
+        except Exception:
+            ack_mac = None
+
+    result: dict[str, object] = {
         "status": "approved",
         "id": pkt_id,
         "hash": pkt_hash,
         "target": args.target,
         "mac": mac,
     }
+    if ack_mac:
+        result["ack_mac"] = ack_mac
+        result["staleness_acknowledged"] = True
 
     if args.json:
         print(json.dumps(result, indent=2))
@@ -102,6 +139,8 @@ def run_approve(argv: list[str]) -> int:
         print(f"Packet '{pkt_id}' successfully approved for target '{args.target}'.")
         print(f"  Hash: {pkt_hash}")
         print(f"  MAC:  {mac}")
+        if ack_mac:
+            print(f"  Staleness Acknowledged (MAC: {ack_mac})")
 
     return 0
 

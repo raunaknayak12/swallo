@@ -121,6 +121,12 @@ def run_init(argv: list[str]) -> int:
             "Sensitive data or keys may be accidentally tracked in version control."
         )
 
+    # 8. MCP server snippet
+    mcp_snippet = {
+        "command": sys.executable,
+        "args": ["-m", "swallo", "mcp", "serve"],
+    }
+
     out_data = {
         "status": "initialized",
         "store_dir": str(store_dir),
@@ -129,6 +135,7 @@ def run_init(argv: list[str]) -> int:
         "db_file": str(db_path),
         "schema_version": schema_ver,
         "registered_project": reg_info,
+        "mcp_config": mcp_snippet,
         "warnings": warnings,
     }
 
@@ -140,6 +147,7 @@ def run_init(argv: list[str]) -> int:
         print(f"  Key file: {key_path} (32 bytes local cryptographic key)")
         print(f"  Config:   {config_path}")
         print(f"  Project:  Registered '{reg_info['name']}' at {reg_info['root_path']}")
+        print(f"  MCP Server Command: {sys.executable} -m swallo mcp serve")
         for w in warnings:
             print(w, file=sys.stderr)
 

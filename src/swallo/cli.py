@@ -194,6 +194,16 @@ def main(argv: list[str] | None = None) -> int:
 
         return run_status(sub_args)
 
+    if subcommand == "edit":
+        from swallo.commands.edit import run_edit
+
+        return run_edit(sub_args)
+
+    if subcommand == "mcp":
+        from swallo.commands.mcp import run_mcp
+
+        return run_mcp(sub_args)
+
     # Unknown subcommand check with close-match suggestion
     if subcommand not in KNOWN_COMMANDS:
         suggestions = difflib.get_close_matches(subcommand, KNOWN_COMMANDS, n=3, cutoff=0.5)

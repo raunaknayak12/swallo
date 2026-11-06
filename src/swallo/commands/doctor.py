@@ -247,6 +247,96 @@ def run_doctor(argv: list[str]) -> int:
         }
     )
 
+    # 8. Workspace-level MCP Configuration Check (ADR-029, F20)
+    cwd = Path.cwd().resolve()
+    mcp_config_candidates = [
+        cwd / ".vscode" / "mcp.json",
+        cwd / ".cursor" / "mcp.json",
+        cwd / "mcp.json",
+    ]
+    workspace_mcp_warns: list[str] = []
+    for cand_file in mcp_config_candidates:
+        if cand_file.is_file():
+            try:
+                cand_content = cand_file.read_text(encoding="utf-8", errors="ignore")
+                if "swallo" in cand_content.lower():
+                    workspace_mcp_warns.append(str(cand_file.relative_to(cwd)))
+            except (OSError, PermissionError):
+                pass
+
+    if workspace_mcp_warns:
+        warn_str = ", ".join(workspace_mcp_warns)
+        checks.append(
+            {
+                "name": "mcp_workspace_config",
+                "status": "WARN",
+                "detail": (
+                    f"Workspace-level MCP config found referencing swallo ({warn_str}). "
+                    "Configure swallo MCP globally in user settings."
+                ),
+            }
+        )
+    else:
+        checks.append(
+            {
+                "name": "mcp_workspace_config",
+                "status": "OK",
+                "detail": "No untrusted workspace-level MCP configurations detected.",
+            }
+        )
+
+    # 9. Workspace Root Registration Check
+    cwd_registered = any(
+        Path(p["root_path"]).resolve() == cwd for p in projs
+    ) if "projs" in locals() else False
+    if not cwd_registered:
+        checks.append(
+            {
+                "name": "workspace_root_registration",
+                "status": "WARN",
+                "detail": f"Current workspace root '{cwd}' is not registered with swallo.",
+            }
+        )
+    else:
+        checks.append(
+            {
+                "name": "workspace_root_registration",
+                "status": "OK",
+                "detail": f"Current workspace root '{cwd}' is registered.",
+            }
+        )
+
+    # 10. Rogue Handoff Files Check
+    handoff_dir = cwd / ".swallo" / "handoff"
+    rogue_files: list[str] = []
+    if handoff_dir.is_dir():
+        try:
+            for f in handoff_dir.iterdir():
+                if f.is_file():
+                    rogue_files.append(f.name)
+        except (OSError, PermissionError):
+            pass
+
+    if rogue_files:
+        checks.append(
+            {
+                "name": "rogue_handoff_files",
+                "status": "WARN",
+                "detail": (
+                    f"Found {len(rogue_files)} file(s) in .swallo/handoff/. "
+                    "Verify ledger approvals to prevent unauthorized handoffs."
+                ),
+            }
+        )
+    else:
+        checks.append(
+            {
+                "name": "rogue_handoff_files",
+                "status": "OK",
+                "detail": "No unverified handoff files found in workspace.",
+            }
+        )
+
     report = {
         "status": "OK" if overall_ok else "FAIL",
         "store_dir": str(store_dir),
