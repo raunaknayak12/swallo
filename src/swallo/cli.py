@@ -139,6 +139,11 @@ def main(argv: list[str] | None = None) -> int:
 
         return run_save(sub_args)
 
+    if subcommand == "import":
+        from swallo.commands.import_cmd import run_import
+
+        return run_import(sub_args)
+
     if subcommand == "show":
         from swallo.commands.show import run_show
 
