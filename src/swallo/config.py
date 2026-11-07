@@ -79,6 +79,15 @@ class ApproveSettings(BaseModel):
     signing: Literal["off", "passphrase"] = "off"
 
 
+class ImporterSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    max_archive_bytes: int = 50 * 1024 * 1024  # 50 MB
+    max_uncompressed_bytes: int = 250 * 1024 * 1024  # 250 MB
+    max_ratio: float = 10.0  # Max 10:1 ratio (zip bomb defense)
+    max_entries: int = 1000
+    max_json_depth: int = 50
+
+
 class Config(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -92,6 +101,7 @@ class Config(BaseModel):
     mcp: MCPSettings = Field(default_factory=MCPSettings)
     stale: StaleSettings = Field(default_factory=StaleSettings)
     approve: ApproveSettings = Field(default_factory=ApproveSettings)
+    importer: ImporterSettings = Field(default_factory=ImporterSettings)
 
 
 def get_store_dir(override: Path | str | None = None) -> Path:
@@ -235,4 +245,11 @@ policy_cli = "warn"
 
 [approve]
 signing = "off" # "off" or "passphrase"
+
+[importer]
+max_archive_bytes = 52428800 # 50 MB
+max_uncompressed_bytes = 262144000 # 250 MB
+max_ratio = 10.0 # Max compression ratio
+max_entries = 1000 # Max archive files
+max_json_depth = 50 # Max JSON nesting depth
 """
