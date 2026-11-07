@@ -124,6 +124,11 @@ def main(argv: list[str] | None = None) -> int:
 
         return run_init(sub_args)
 
+    if subcommand == "prompt":
+        from swallo.commands.prompt import run_prompt
+
+        return run_prompt(sub_args)
+
     if subcommand == "doctor":
         from swallo.commands.doctor import run_doctor
 
