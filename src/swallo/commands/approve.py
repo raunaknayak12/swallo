@@ -73,7 +73,7 @@ def run_approve(argv: list[str]) -> int:
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT id, hash, project, body FROM packets WHERE id = ? OR hash = ?",
+            "SELECT id, hash, project, body, origin FROM packets WHERE id = ? OR hash = ?",
             (args.packet_id, args.packet_id),
         )
         row = cursor.fetchone()
@@ -83,7 +83,14 @@ def run_approve(argv: list[str]) -> int:
     if not row:
         raise UsageError(f"Packet '{args.packet_id}' not found in store.")
 
-    pkt_id, pkt_hash, project, body_raw = row[0], row[1], row[2], row[3]
+    pkt_id, pkt_hash, project, body_raw, origin = row[0], row[1], row[2], row[3], row[4]
+
+    # Security check (F8, F21): Imported packets require --accept-untrusted
+    if origin == "imported" and not args.accept_untrusted:
+        raise UsageError(
+            f"Packet '{pkt_id}' was imported from an untrusted vendor export. "
+            "Approval requires the --accept-untrusted flag."
+        )
 
     # 2. Terminal Confirmation check (ADR-007, F21)
     if not args.force:
