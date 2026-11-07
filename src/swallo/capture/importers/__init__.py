@@ -3,9 +3,11 @@ Vendor archive importers for swallo (ChatGPT, Claude, Gemini Takeout).
 """
 
 from swallo.capture.importers.base import ArchiveGuard, BaseImporter, SessionSummary
+from swallo.capture.importers.stream import safe_json_loads
 
 __all__ = [
     "ArchiveGuard",
     "BaseImporter",
     "SessionSummary",
+    "safe_json_loads",
 ]
