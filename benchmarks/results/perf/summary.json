@@ -1,0 +1,140 @@
+{
+  "schema_version": "0.1",
+  "swallo_version": "0.1.0",
+  "git_commit": "a8b994cf46873d11857d4330665608bcb9ec6c7d",
+  "environment": {
+    "os": "Windows 11",
+    "architecture": "64bit",
+    "python_version": "3.12.10",
+    "cpu": "AMD64 Family 25 Model 124 Stepping 0, AuthenticAMD",
+    "cpu_count_logical": 12,
+    "cpu_count_physical": 6,
+    "total_ram_gb": 15.23
+  },
+  "benchmarks": {
+    "redaction": {
+      "1MB": {
+        "size_bytes": 1048608,
+        "latency_seconds": {
+          "median": 0.251292,
+          "iqr": 0.005833,
+          "min": 0.234983,
+          "max": 0.25396
+        },
+        "throughput_mb_s": 3.98,
+        "rounds": 5,
+        "warmups": 2
+      },
+      "5MB": {
+        "size_bytes": 5242944,
+        "latency_seconds": {
+          "median": 0.832892,
+          "iqr": 0.014402,
+          "min": 0.822564,
+          "max": 0.98486
+        },
+        "throughput_mb_s": 6.0,
+        "rounds": 5,
+        "warmups": 2
+      }
+    },
+    "canonical_hashing": {
+      "10_items": {
+        "item_count": 10,
+        "latency_seconds": {
+          "median": 6.9e-05,
+          "iqr": 5e-06,
+          "min": 6.4e-05,
+          "max": 7.8e-05
+        },
+        "rounds": 15,
+        "warmups": 3
+      },
+      "100_items": {
+        "item_count": 100,
+        "latency_seconds": {
+          "median": 0.000493,
+          "iqr": 1.6e-05,
+          "min": 0.000483,
+          "max": 0.000633
+        },
+        "rounds": 15,
+        "warmups": 3
+      },
+      "500_items": {
+        "item_count": 500,
+        "latency_seconds": {
+          "median": 0.002459,
+          "iqr": 0.000141,
+          "min": 0.00237,
+          "max": 0.003204
+        },
+        "rounds": 15,
+        "warmups": 3
+      }
+    },
+    "sqlite_wal": {
+      "single_writer": {
+        "writes_count": 300,
+        "latency_seconds": {
+          "median": 0.338237,
+          "iqr": 0.018063,
+          "min": 0.333412,
+          "max": 0.420752
+        },
+        "writes_per_sec": 887.0,
+        "rounds": 5
+      }
+    },
+    "mcp_latency": {
+      "list_contexts": {
+        "median": 0.003187,
+        "iqr": 0.000905,
+        "min": 0.0025,
+        "max": 0.00388
+      },
+      "save_context_draft": {
+        "median": 0.003792,
+        "iqr": 0.000586,
+        "min": 0.002673,
+        "max": 0.004453
+      },
+      "rounds": 15
+    },
+    "cli_cold_start": {
+      "swallo_help": {
+        "median": 0.211892,
+        "iqr": 0.0091,
+        "min": 0.191162,
+        "max": 0.23025
+      },
+      "swallo_list": {
+        "median": 0.373965,
+        "iqr": 0.006405,
+        "min": 0.362299,
+        "max": 0.37587
+      }
+    },
+    "memory": {
+      "1MB": {
+        "tracemalloc_peak_bytes": 3355,
+        "tracemalloc_peak_mb": 0.0,
+        "rss_delta_mb": 0.0,
+        "rss_current_mb": 39.95
+      },
+      "5MB": {
+        "tracemalloc_peak_bytes": 3334,
+        "tracemalloc_peak_mb": 0.0,
+        "rss_delta_mb": -1.0,
+        "rss_current_mb": 43.96
+      }
+    },
+    "token_reduction": {
+      "raw_transcript_tokens": 2600,
+      "packet_tokens": 2538,
+      "tokens_saved": 62,
+      "reduction_percentage": 2.38,
+      "tokenizer": "cl100k_base"
+    }
+  }
+}
