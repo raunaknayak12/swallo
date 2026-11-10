@@ -1,28 +1,219 @@
 # swallo
 
+[![CI](https://github.com/raunaknayak12/swallo/actions/workflows/ci.yml/badge.svg)](https://github.com/raunaknayak12/swallo/actions/workflows/ci.yml)
+[![Clean Install](https://github.com/raunaknayak12/swallo/actions/workflows/clean-install.yml/badge.svg)](https://github.com/raunaknayak12/swallo/actions/workflows/clean-install.yml)
+[![PyPI](https://img.shields.io/pypi/v/swallo.svg)](https://pypi.org/project/swallo/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Portable, reviewable handoff between any chat agent and any IDE, with reproducible evidence that it works.
 
-> **Status:** Design stage. Nothing released yet. Do not install from package indexes; no published releases exist.
+`swallo` is a local-first, zero-network context handoff and security tool designed to transport structured conversational and debugging context between AI chat agents (ChatGPT, Claude, Gemini) and agentic IDE environments (Claude Code, Cursor, Antigravity).
 
-## Overview
+Context travels as an integrity-checked, schema-validated JSON "context packet" with cryptographic content addressing, deterministic canonicalization, explicit redaction bounds, Trojan Source sanitization, and zero network calls in the core runtime.
 
-`swallo` is an open-source, pure-Python project designed to transport structured conversational and debugging context between AI coding assistants, chat interfaces (ChatGPT, Claude, Gemini), and agentic IDE environments (Claude Code, Cursor, Antigravity).
+---
 
-Context travels as an integrity-checked, schema-validated JSON "context packet" with cryptographic content addressing, deterministic canonicalization, explicit redaction bounds, and zero network calls in the core runtime.
+## Architecture Overview
 
-## Documentation
+```mermaid
+flowchart TD
+    subgraph Capture["1. Ingest & Capture"]
+        Chat["Chat Session / Export"] --> Prompt["swallo prompt / paste"]
+        Vendor["Vendor JSON / Markdown"] --> Import["swallo import"]
+    end
 
-Comprehensive design specifications and architecture documentation are located in [`docs/`](docs/):
+    subgraph SecuritySpine["2. Security & Redaction Spine"]
+        Prompt --> Redact["Redaction Engine<br/>(Decoded Variants & Caps)"]
+        Import --> Redact
+        Redact --> Sanitize["Trojan Source Sanitizer<br/>(CVE-2021-42574 BiDi Neutralization)"]
+        Sanitize --> Canonical["Swallo Canonical JSON v1<br/>(Float-Free, NFC-Normalized)"]
+    end
 
-- [Documentation Overview](docs/README.md)
-- [Product Requirements Document (PRD)](docs/PRD.md)
-- [Technical Requirements Document (TRD)](docs/TRD.md)
-- [Architecture & Design Decisions](docs/DECISIONS.md)
-- [Context Packet Schema](docs/PACKET_SCHEMA.md)
-- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
-- [Threat Model & Security Design](docs/Security.md)
-- [Benchmarks & Claims Policy](docs/BENCHMARKS.md)
-- [Roadmap & Milestones](docs/ROADMAP.md)
+    subgraph Storage["3. Content-Addressed Local Store"]
+        Canonical --> SQLite["SQLite Store + WAL<br/>(%LOCALAPPDATA% / XDG)"]
+        Canonical --> EventLog["HMAC / Ed25519 Signed Ledger<br/>& Event Log Chain"]
+    end
+
+    subgraph Consumption["4. Human Review & Delivery"]
+        SQLite --> CLIReview["swallo approve / send<br/>(Interactive TTY Required)"]
+        SQLite --> MCPServer["swallo mcp<br/>(Draft Quota + Token Bucket)"]
+        CLIReview --> IDE["Target IDEs:<br/>Claude Code / Cursor / Antigravity"]
+        MCPServer --> IDE
+    end
+```
+
+---
+
+## Installation
+
+Requires Python >= 3.11.
+
+```bash
+# Core package (zero third-party runtime dependencies beyond Pydantic)
+pip install swallo
+
+# With optional extras:
+pip install "swallo[mcp]"     # FastMCP server integration
+pip install "swallo[sign]"    # Ed25519 passphrase signing via cryptography
+pip install "swallo[tokens]"  # Token counting via tiktoken
+pip install "swallo[dev]"     # Development, testing, and benchmark suite
+```
+
+### Dependency Isolation Guarantee
+The core runtime strictly requires only `pydantic>=2.0.0` and the Python standard library. Optional dependencies (`mcp`, `cryptography`, `tiktoken`) are imported lazily on demand. Importing `swallo` emits zero warnings under `python -W error` and will never load optional modules into `sys.modules`.
+
+---
+
+## Quick Start
+
+1. **Initialize the local store:**
+   ```bash
+   swallo init
+   ```
+2. **Verify environment health:**
+   ```bash
+   swallo doctor
+   ```
+3. **Capture context via structured paste:**
+   ```bash
+   swallo prompt --instructions > prompt.txt
+   # Paste context into prompt.txt, then save:
+   swallo save --file prompt.txt --target antigravity
+   ```
+4. **Inspect and approve the packet:**
+   ```bash
+   swallo show pkt_latest
+   swallo approve pkt_latest --target antigravity
+   ```
+5. **Deliver to target IDE:**
+   ```bash
+   swallo send pkt_latest --target antigravity
+   ```
+
+---
+
+## CLI Command Reference
+
+`swallo` provides 23 structured subcommands:
+
+| Command | Synopsis | Description |
+|---|---|---|
+| `swallo init` | `swallo init [--force]` | Initialize local store directory, database, HMAC key, and default config. |
+| `swallo doctor` | `swallo doctor [--json]` | Diagnose environment, permissions, key health, and workspace roots. |
+| `swallo prompt` | `swallo prompt [--instructions]` | Generate capture prompt template for chat assistants. |
+| `swallo save` | `swallo save [--file F] [--target T]` | Ingest, redact, canonicalize, and store a new context packet. |
+| `swallo import` | `swallo import <path> [--format FMT]` | Import vendor chat exports (ChatGPT, Claude, Gemini) securely. |
+| `swallo merge` | `swallo merge <base> <incoming>` | Three-way merge two packets against a common base. |
+| `swallo resolve` | `swallo resolve <pkt> [--accept OURS\|THEIRS]` | Resolve merge conflicts in a packet. |
+| `swallo show` | `swallo show <pkt_id> [--raw] [--json]` | Inspect packet details, decisions, constraints, and provenance. |
+| `swallo edit` | `swallo edit <pkt_id>` | Interactively edit packet fields with schema re-validation. |
+| `swallo approve` | `swallo approve <pkt_id> --target T` | Record cryptographic approval in local ledger (TTY required). |
+| `swallo send` | `swallo send <pkt_id> --target T` | Materialize two-file delivery stub and handoff data file for IDE. |
+| `swallo load` | `swallo load <pkt_id>` | Load packet into memory or inspect delivered state. |
+| `swallo diff` | `swallo diff <pkt_a> <pkt_b>` | Show structural and field-level diff between two packets. |
+| `swallo list` / `status` | `swallo list [--limit N]` | List packets, drafts, approval status, and timestamps. |
+| `swallo log` | `swallo log [--verify]` | Inspect audit event log and verify cryptographic hash chain. |
+| `swallo staleness` | `swallo staleness <pkt_id> [--ack]` | Check git drift against HEAD; acknowledge critical drift. |
+| `swallo drafts` | `swallo drafts [--clean] [--quota]` | Inspect and clean pending unapproved MCP draft packets. |
+| `swallo breaker` | `swallo breaker [--reset]` | Inspect or reset the MCP save circuit breaker. |
+| `swallo bench` | `swallo bench <run\|verify>` | Execute or verify deterministic benchmark suite. |
+| `swallo mcp` | `swallo mcp [--transport stdio]` | Start the Model Context Protocol (MCP) server. |
+| `swallo help` | `swallo help [command]` | Display detailed command help and argument descriptions. |
+| `swallo version` | `swallo version [--json]` | Print tool version, supported schema versions, and runtime info. |
+
+### Exit Codes
+- `0`: Success.
+- `1`: General application error.
+- `2`: `UsageError` (invalid arguments, flags, or unknown command).
+- `3`: `ValidationError` (schema or boundary violation).
+- `4`: `RedactionBlockedError` (unredacted secret detected in fail-closed mode).
+- `5`: `ConflictError` (unresolved merge conflict).
+- `6`: `NotApprovedError` (attempting to consume unapproved context).
+- `7`: `StaleContextError` (packet blocked by staleness drift policy).
+- `8`: `IntegrityError` (corrupt database or broken event-log hash chain).
+- `9`: `SecurityError` (path traversal, symlink escape, or forged approval).
+- `10`: `RateLimitedError` (MCP session token bucket exhausted).
+- `11`: `SessionPausedError` (MCP circuit breaker tripped after repeated blocked saves).
+- `12`: `DraftQuotaExceededError` (draft count or storage quota exceeded).
+- `13`: `UnregisteredProjectError` (workspace not registered in global store).
+
+---
+
+## Configuration Reference
+
+Configuration is stored in `<store>/config.toml` (e.g. `%LOCALAPPDATA%\swallo\config.toml` on Windows, `~/.local/share/swallo/config.toml` on Linux).
+
+```toml
+[storage]
+busy_timeout_ms = 5000     # SQLite WAL busy handler timeout
+max_packet_bytes = 10485760 # 10MB packet payload limit
+max_json_depth = 64        # Maximum nested JSON parsing depth
+
+[redaction]
+mode = "mask"              # "mask", "remove", or "fail_closed"
+scan_decoded_variants = true
+max_decode_depth = 3
+max_decode_bytes = 65536
+decode_timeout_ms = 200
+
+[mcp]
+enabled = true
+token_bucket_rate = 30     # 30 requests per minute
+token_bucket_burst = 10    # Burst allowance
+draft_quota = 50           # Maximum unapproved drafts per project
+circuit_breaker_threshold = 5 # Consecutive blocks before session pause
+
+[approve]
+signing = "hmac"           # "hmac" (default) or "passphrase" (Ed25519)
+require_tty = true         # Invariant: agents cannot approve context
+```
+
+---
+
+## MCP Integration
+
+`swallo` provides standard Model Context Protocol (MCP) support over `stdio`. The server exposes `swallo_save_draft`, `swallo_load_packet`, and `swallo_query_store`. In accordance with security invariant ADR-007, **no approve tool is exposed via MCP**.
+
+### Claude Code
+Add to your project's `.mcp.json` or user-level config:
+```json
+{
+  "mcpServers": {
+    "swallo": {
+      "command": "swallo",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+### Cursor
+Add to Cursor's MCP Settings (`Settings > Features > MCP`):
+- **Name**: `swallo`
+- **Type**: `command`
+- **Command**: `swallo mcp`
+
+### Antigravity
+Add to `.gemini/antigravity/mcp/swallo.json` or your MCP server configuration:
+```json
+{
+  "name": "swallo",
+  "command": "swallo",
+  "args": ["mcp"]
+}
+```
+
+---
+
+## Security Model & Structural Invariants
+
+1. **Two-File Delivery**: Chat-derived context is written to isolated data files under `.swallo/handoff/`, leaving only a short pointer stub in rules files.
+2. **Mandatory Interactive Approval**: Approval requires an interactive TTY. Agents cannot approve context.
+3. **Deterministic Content Addressing**: All packets and items are addressed by SHA-256 hashes of their canonical JSON representations.
+4. **Trojan Source Sanitization**: Bidirectional overrides, zero-width characters, and Unicode tag characters (CVE-2021-42574) are strictly stripped or neutralized.
+5. **Circuit Breaker**: 5 consecutive blocked saves trip the MCP circuit breaker, pausing agent activity until reset by the human operator.
+
+---
 
 ## License
 

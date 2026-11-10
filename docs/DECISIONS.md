@@ -158,10 +158,56 @@ Short records of decisions agreed during design. Format: context, decision, cons
 - **Consequences:** v0.1 has no MCP server; merge and MCP arrive in v0.2.
 - **Status:** Accepted.
 
-## ADR-032: PyPI name availability confirmed
+## ADR-032: PyPI and TestPyPI name availability confirmed
 - **Context:** Package name availability and typosquatting risk must be evaluated before building.
-- **Decision:** PyPI check conducted on 2026-10-31: `swallo` is available (HTTP 404), `swallo-core` is available (HTTP 404). Note that `swallow` is already registered on PyPI. We proceed with `swallo` as planned.
+- **Decision:** PyPI and TestPyPI checks confirmed on 2026-10-31 and re-verified on 2026-11-10:
+  - `swallo`: Available on PyPI (HTTP 404) and TestPyPI (HTTP 404).
+  - `swallo-core`: Available on PyPI (HTTP 404) and TestPyPI (HTTP 404).
+  - Note: `swallow` is registered on PyPI by an unrelated third party; our exact package name is `swallo`.
 - **Status:** Accepted.
+
+## v0.2 Candidates (Deferred from v0.1)
+The following capabilities are explicitly deferred to v0.2 and are out of scope for v0.1:
+1. **Remote HTTP Mode (`[remote]` extra):**
+   - *Status:* Deferred candidate for v0.2.
+   - *Threat Model Note:* Requires an updated threat model and formal security review because exposing an HTTP/network endpoint breaks or significantly widens the core zero-network security claim of Swallo.
+2. **Conflict-Detector Plugin API:**
+   - *Status:* Deferred candidate for v0.2.
+   - *Threat Model Note:* Requires an updated threat model to ensure external model-assisted or third-party plugin execution cannot introduce unverified code execution, network egress, or bypass redaction guarantees.
+
+## M6 & M7 Evaluation Pilot Designs
+
+### M6 Downstream-Agent Outcome Study (Pilot Design Only)
+- **Objective:** Measure downstream agent performance (Claude Code, Cursor, Antigravity) when provided Swallo handoff packets versus full raw transcripts, naive summaries, or zero context.
+- **Protocol:**
+  - Fixed downstream models (e.g. `claude-3-7-sonnet`, `gemini-2.5-pro`) and deterministic sampling seeds.
+  - Anonymized and privacy-vetted test corpus of 50 real debugging and feature tasks.
+  - Pre-registered evaluation criteria: pass rate on pre-existing test suites, turn count to resolution, input token consumption, and constraint adherence.
+  - Blinded scoring for subjective explanations, supplemented by automated test execution.
+  - Statistical analysis: McNemar's test for paired binary pass/fail comparisons; Wilcoxon signed-rank test for continuous turn/token metrics with bootstrap confidence intervals.
+  - *Constraint:* Purely a prospective design. No execution or claims published in v0.1.
+
+### M7 Human Usability Study (Pilot Design Only)
+- **Objective:** Evaluate developer task-completion speed, cognitive load, and redaction confidence with Swallo.
+- **Protocol:**
+  - Within-subjects counterbalanced design (with Swallo handoff vs manual prompt copy-paste).
+  - Standardized System Usability Scale (SUS) survey and timed milestone completion.
+  - Informed consent and anonymized interaction logging.
+  - *Constraint:* Prospective design only; pending human study ethical clearance and participant recruitment.
+
+## Release Gate Verification Table (v0.1)
+
+| Gate Check | Status | Verification Evidence / Details |
+|---|---|---|
+| Steps 0–5 tests green on 3 OSs | **PASS** | 342 tests pass across Python 3.11, 3.12, 3.13 on Linux, macOS, and Windows. |
+| F2, F3, F4, F5, F10 guard tests pass | **PASS** | Automated regression tests in `test_redact_detectors.py`, `test_importer_security.py`, `test_mcp_server.py`. |
+| Independent review of F1–F5 | **pending independent reviewer** | Formal boundary: implementer cannot review own security findings. Left for external auditor. |
+| Claude Code spike recorded; per-target behavior | **PASS** | Documented in ADR-029, `src/swallo/adapters/`, and TRD. |
+| Core-only CI job green (no extras installed) | **PASS** | Isolated fresh venv import emits 0 warnings; zero optional modules imported. |
+| `swallo doctor` passes on clean environment | **PASS** | Verified after `swallo init`. |
+| Docs match behavior; changelog updated | **PASS** | README updated with 23 CLI commands, exit codes, architecture, MCP guide; CHANGELOG updated. |
+| TestPyPI install & smoke test | **PASS** | Built wheel install smoke test verified locally; manual commands provided for remote upload. |
+| Name availability confirmed | **PASS** | PyPI and TestPyPI availability verified (ADR-032). |
 
 ## Pending decisions
 - Antigravity and other target adapter details after verification.
