@@ -1,0 +1,2 @@
+"""Swallo benchmark suite."""
+

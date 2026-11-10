@@ -1,0 +1,107 @@
+{
+  "schema_version": "0.1",
+  "swallo_version": "0.1.0",
+  "git_commit": "450ea0d1869a523e090db433e62cbc972a07f3a3",
+  "environment": {
+    "os": "Windows 11",
+    "architecture": "64bit",
+    "python_version": "3.12.10",
+    "cpu": "AMD64 Family 25 Model 124 Stepping 0, AuthenticAMD"
+  },
+  "metrics": {
+    "corpus_redaction": {
+      "pattern_recall": 0.8,
+      "pattern_precision": 1.0,
+      "pattern_f1": 0.8889,
+      "pattern_false_positive_rate": 0.0,
+      "per_type_accuracy": {
+        "aws_access_key": 1.0,
+        "github_token": 1.0,
+        "slack_token": 1.0,
+        "private_key": 1.0,
+        "connection_password": 0.0,
+        "bearer_token": 1.0,
+        "high_entropy_secret": 0.0
+      },
+      "entropy_detector_false_positive_rate": 0.0,
+      "entropy_detector_fp_samples_count": 0,
+      "entropy_detector_fp_samples": [],
+      "total_positive_samples": 15,
+      "total_negative_samples": 11
+    },
+    "decoded_variants": {
+      "base64_recall": 1.0,
+      "hex_recall": 1.0,
+      "url_recall": 1.0,
+      "rot13_recall": 1.0,
+      "reversal_recall": 1.0,
+      "zero_width_recall": 1.0,
+      "nested_depth_2_recall": 1.0,
+      "nested_depth_3_recall": 1.0,
+      "size_cap_exceeded_handled": true,
+      "size_cap_duration_s": 0.063,
+      "depth_cap_exceeded_handled": true,
+      "depth_cap_duration_s": 0.0
+    },
+    "hash_stability": {
+      "key_order_invariance": true,
+      "unicode_nfc_normalization": true,
+      "volatile_fields_excluded": true,
+      "float_rejected": true,
+      "nan_rejected": true,
+      "inf_rejected": true,
+      "safe_int_boundary_accepted": true,
+      "exceeded_int_boundary_rejected": true
+    },
+    "defense_matrix": {
+      "zip_slip_relative_blocked": true,
+      "zip_slip_absolute_blocked": true,
+      "zip_slip_backslash_blocked": true,
+      "member_count_limit_blocked": true,
+      "uncompressed_size_limit_blocked": true,
+      "compression_ratio_bomb_blocked": true,
+      "json_max_depth_blocked": true,
+      "defense_matrix_pass_rate": 1.0
+    },
+    "sanitizer": {
+      "trojan_source_bidi_neutralized": true,
+      "unicode_tag_chars_neutralized": true,
+      "tags_stripped_completely": true,
+      "ansi_escapes_neutralized": true,
+      "ansi_stripped_completely": true,
+      "invisible_chars_flagged_count": 4,
+      "invisible_detection_recall": 1.0,
+      "sanitizer_overall_pass_rate": 1.0
+    },
+    "tamper_detection": {
+      "event_log_tamper_detection_rate": 1.0,
+      "event_log_mutations_tested": 5,
+      "ledger_tamper_detection_rate": 1.0,
+      "ledger_mutations_tested": 4,
+      "overall_tamper_detection_rate": 1.0
+    },
+    "security_invariants": {
+      "mcp_tool_list_has_no_approve": true,
+      "circuit_breaker_trips_at_5": true,
+      "circuit_breaker_persists_across_restart": true,
+      "token_bucket_burst_enforced": true,
+      "draft_quota_enforced": true,
+      "stale_packet_blocked_by_default": true,
+      "all_invariants_hold": true
+    },
+    "fuzz_testing": {
+      "fuzz_iterations": 112,
+      "fuzz_crashes": 0,
+      "status": "PASS"
+    }
+  },
+  "deterministic_summary": {
+    "all_defenses_passed": true,
+    "redaction_f1": 0.8889,
+    "variant_recall_base64": 1.0,
+    "variant_recall_rot13": 1.0,
+    "variant_recall_reversal": 1.0,
+    "variant_recall_zero_width": 1.0,
+    "tamper_detection_rate": 1.0
+  }
+}

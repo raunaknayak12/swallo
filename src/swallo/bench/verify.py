@@ -18,6 +18,81 @@ from swallo.bench.fixtures import build_fixture_set, fixture_manifest_sha256
 from swallo.bench.schema import BenchResults
 
 
+def _verify_deterministic_bench_results(
+    raw_obj: dict[str, object],
+) -> tuple[bool, list[str]]:
+    """
+    Verify deterministic correctness benchmark results.
+    Compares metrics only and ignores environment fields (git SHA, OS, Python version, timestamps).
+    """
+    logs: list[str] = []
+
+    # 1. Schema version
+    schema_ver = raw_obj.get("schema_version")
+    if schema_ver != "0.1":
+        logs.append(f"FAIL: Unsupported schema_version '{schema_ver}'. Expected '0.1'.")
+        return False, logs
+    logs.append("PASS: Schema version is '0.1'.")
+
+    # 2. Metrics check
+    metrics = raw_obj.get("metrics")
+    if not isinstance(metrics, dict):
+        logs.append("FAIL: Missing or invalid 'metrics' mapping.")
+        return False, logs
+
+    summary = raw_obj.get("deterministic_summary")
+    if not isinstance(summary, dict):
+        logs.append("FAIL: Missing or invalid 'deterministic_summary' mapping.")
+        return False, logs
+
+    # Required deterministic metric areas
+    required_areas = [
+        "corpus_redaction",
+        "decoded_variants",
+        "hash_stability",
+        "defense_matrix",
+        "sanitizer",
+        "tamper_detection",
+        "security_invariants",
+    ]
+    missing = [a for a in required_areas if a not in metrics]
+    if missing:
+        logs.append(f"FAIL: Missing required deterministic benchmark areas: {', '.join(missing)}")
+        return False, logs
+
+    # Verify key invariant thresholds
+    defense_matrix = metrics.get("defense_matrix", {})
+    if isinstance(defense_matrix, dict) and defense_matrix.get("defense_matrix_pass_rate") != 1.0:
+        logs.append("FAIL: Defense matrix pass rate is not 100%.")
+        return False, logs
+    logs.append("PASS: Defense matrix pass rate: 100%")
+
+    sanitizer = metrics.get("sanitizer", {})
+    if isinstance(sanitizer, dict) and sanitizer.get("sanitizer_overall_pass_rate") != 1.0:
+        logs.append("FAIL: Sanitizer pass rate is not 100%.")
+        return False, logs
+    logs.append("PASS: Sanitizer pass rate: 100%")
+
+    tamper = metrics.get("tamper_detection", {})
+    if isinstance(tamper, dict) and tamper.get("overall_tamper_detection_rate") != 1.0:
+        logs.append("FAIL: Tamper detection rate is not 100%.")
+        return False, logs
+    logs.append("PASS: Tamper detection rate: 100%")
+
+    invariants = metrics.get("security_invariants", {})
+    if isinstance(invariants, dict) and not invariants.get("all_invariants_hold"):
+        logs.append("FAIL: Security invariants failed.")
+        return False, logs
+    logs.append("PASS: Security invariants: All invariants hold")
+
+    redaction = metrics.get("corpus_redaction", {})
+    if isinstance(redaction, dict):
+        f1 = redaction.get("pattern_f1", 0.0)
+        logs.append(f"PASS: Redaction pattern F1: {f1}")
+
+    return True, logs
+
+
 def verify_bench_results(
     results_path: Path,
 ) -> tuple[bool, list[str]]:
@@ -40,6 +115,12 @@ def verify_bench_results(
         raw_obj = json.JSONDecoder().decode(content)
         if not isinstance(raw_obj, dict):
             return False, ["Invalid JSON: root must be an object."]
+
+        # Check if this is the Phase 2 deterministic benchmark format
+        # (benchmarks/results/deterministic.json)
+        if "metrics" in raw_obj and "deterministic_summary" in raw_obj:
+            return _verify_deterministic_bench_results(raw_obj)
+
         data = BenchResults.from_dict(raw_obj)
     except Exception as exc:
         return False, [f"Failed to parse results.json: {exc}"]
