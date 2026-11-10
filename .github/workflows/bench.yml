@@ -1,0 +1,43 @@
+name: Statistical Performance Benchmarks
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run once a week at midnight UTC on Sundays
+    - cron: '0 0 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev,tokens] psutil pyperf pytest-benchmark
+
+      - name: Run statistical benchmarks
+        run: |
+          python -m benchmarks.perf.runner
+
+      - name: Upload benchmark results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-benchmark-results
+          path: benchmarks/results/perf/
+          retention-days: 30
+
+      - name: Runner Noise Disclaimer
+        run: |
+          echo "Note: GitHub Actions hosted runners share virtualized hardware with variable noisy neighbors."
+          echo "These benchmark numbers are indicative of order-of-magnitude performance and not absolute."
