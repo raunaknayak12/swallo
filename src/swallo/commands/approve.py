@@ -6,16 +6,18 @@ Per ADR-003, ADR-007, IMPLEMENTATION_PLAN.md Step 4, and Security.md F2/F21:
 - Requires interactive confirmation on the controlling terminal (/dev/tty or CONIN$),
   unless explicitly overridden with --force.
 - There is NO approve tool in the MCP server; approval MUST be triggered via the CLI.
+- Optional passphrase signing (Ed25519) via swallo[sign] when signing mode is enabled.
 """
 
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import sys
 from pathlib import Path
 
-from swallo.config import get_store_dir
+from swallo.config import get_store_dir, load_config
 from swallo.errors import UsageError
 from swallo.repo.gitstate import get_repo_root
 from swallo.repo.staleness import check_staleness, record_stale_ack
@@ -53,6 +55,11 @@ def run_approve(argv: list[str]) -> int:
         "--accept-untrusted",
         action="store_true",
         help="Accept and approve an untrusted or externally imported packet.",
+    )
+    parser.add_argument(
+        "--passphrase",
+        default=None,
+        help="Passphrase for Ed25519 digital signature of approval (swallo[sign]).",
     )
     parser.add_argument("--store", type=Path, default=None, help="Store directory override.")
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON.")
@@ -109,7 +116,54 @@ def run_approve(argv: list[str]) -> int:
     # 3. Write approval to cryptographic ledger
     mac = approve(conn, key_bytes, pkt_hash, args.target)
 
-    # 4. Optional staleness acknowledgment
+    # 4. Optional Ed25519 digital signature
+    cfg, _ = load_config(store_dir)
+    signing_mode = (
+        "passphrase"
+        if (args.passphrase is not None or cfg.approve.signing == "passphrase")
+        else "off"
+    )
+
+    sig_hex: str | None = None
+    pub_key_hex: str | None = None
+
+    if signing_mode == "passphrase":
+        from swallo.store.signing import (
+            StoredSigningMeta,
+            derive_key,
+            init_signing_keys,
+            sign_payload,
+            verify_passphrase,
+        )
+
+        passphrase = args.passphrase
+        if passphrase is None:
+            passphrase = getpass.getpass("Enter approval signing passphrase: ")
+        if not passphrase:
+            raise UsageError("Signing passphrase cannot be empty.")
+
+        meta_file = store_dir / ".signing_meta.json"
+        if not meta_file.is_file():
+            meta, priv_key = init_signing_keys(passphrase)
+            meta.save(meta_file)
+        else:
+            meta = StoredSigningMeta.load(meta_file)
+            if not verify_passphrase(passphrase, meta):
+                raise UsageError("Invalid passphrase for approval signing.")
+            salt = bytes.fromhex(meta.salt_hex)
+            priv_key = derive_key(
+                passphrase,
+                salt,
+                n=meta.scrypt_n,
+                r=meta.scrypt_r,
+                p=meta.scrypt_p,
+            )
+
+        payload = f"approve:{pkt_hash}:{args.target}:{mac}".encode()
+        sig_hex = sign_payload(priv_key, payload)
+        pub_key_hex = meta.public_key_hex
+
+    # 5. Optional staleness acknowledgment
     ack_mac: str | None = None
     if args.ack_stale:
         repo_root = get_repo_root(Path.cwd()) or Path.cwd().resolve()
@@ -136,6 +190,10 @@ def run_approve(argv: list[str]) -> int:
         "target": args.target,
         "mac": mac,
     }
+    if sig_hex and pub_key_hex:
+        result["signature"] = sig_hex
+        result["signer_public_key"] = pub_key_hex
+
     if ack_mac:
         result["ack_mac"] = ack_mac
         result["staleness_acknowledged"] = True
@@ -146,8 +204,10 @@ def run_approve(argv: list[str]) -> int:
         print(f"Packet '{pkt_id}' successfully approved for target '{args.target}'.")
         print(f"  Hash: {pkt_hash}")
         print(f"  MAC:  {mac}")
+        if sig_hex:
+            print(f"  Signature: {sig_hex}")
+            print(f"  Signer Pubkey: {pub_key_hex}")
         if ack_mac:
             print(f"  Staleness Acknowledged (MAC: {ack_mac})")
 
     return 0
-
