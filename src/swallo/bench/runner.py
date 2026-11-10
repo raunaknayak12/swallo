@@ -63,7 +63,7 @@ def _get_memory_gb() -> float:
         stat.dwLength = ctypes.sizeof(MemoryStatusEx)
         kernel32 = getattr(ctypes.windll, "kernel32", None)
         if kernel32 and kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
-            return round(stat.ullTotalPhys / (1024**3), 2)
+            return float(round(stat.ullTotalPhys / (1024**3), 2))
     except (AttributeError, OSError):
         return 0.0
     return 0.0

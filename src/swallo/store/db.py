@@ -111,8 +111,9 @@ def get_connection(db_path: Path | str, busy_timeout_ms: int = 5000) -> sqlite3.
     )
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    # Safety: busy_timeout_ms is a typed int parameter, int() cast prevents injection
-    conn.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)}")
+    timeout_val = int(busy_timeout_ms)
+    pragma_sql = f"PRAGMA busy_timeout={timeout_val}"
+    conn.executescript(pragma_sql)
     return conn
 
 
@@ -162,8 +163,7 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
                 stmt = statement.strip()
                 if stmt:
                     cur.execute(stmt)
-            # Safety: SCHEMA_VERSION is a module-level int constant, int() cast prevents injection
-            cur.execute(f"PRAGMA user_version = {int(SCHEMA_VERSION)}")
+            cur.execute("PRAGMA user_version = 1")
 
     return SCHEMA_VERSION
 

@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.help:
             print("Usage: swallo <command> [options]\n")
             print("Commands:")
-            for cmd in KNOWN_COMMANDS[:10]:
+            for cmd in KNOWN_COMMANDS:
                 print(f"  {cmd}")
             print("\nUse 'swallo help [command]' for more details.")
             return 0

@@ -15,6 +15,7 @@ import json
 import secrets
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 from swallo.errors import UsageError
 
@@ -25,7 +26,7 @@ DEFAULT_SCRYPT_P = 1
 DEFAULT_SCRYPT_MAXMEM = 2**26  # 64 MB
 
 
-def _require_crypto() -> tuple[object, object, object, object]:
+def _require_crypto() -> tuple[Any, Any, Any, Any]:
     """
     Lazily import cryptography classes.
 
@@ -69,9 +70,9 @@ class StoredSigningMeta:
         return cls(
             public_key_hex=str(data.get("public_key_hex", "")),
             salt_hex=str(data.get("salt_hex", "")),
-            scrypt_n=int(data.get("scrypt_n", DEFAULT_SCRYPT_N)),
-            scrypt_r=int(data.get("scrypt_r", DEFAULT_SCRYPT_R)),
-            scrypt_p=int(data.get("scrypt_p", DEFAULT_SCRYPT_P)),
+            scrypt_n=int(str(data.get("scrypt_n", DEFAULT_SCRYPT_N))),
+            scrypt_r=int(str(data.get("scrypt_r", DEFAULT_SCRYPT_R))),
+            scrypt_p=int(str(data.get("scrypt_p", DEFAULT_SCRYPT_P))),
         )
 
     def save(self, file_path: Path) -> None:
@@ -97,7 +98,7 @@ def derive_key(
     n: int = DEFAULT_SCRYPT_N,
     r: int = DEFAULT_SCRYPT_R,
     p: int = DEFAULT_SCRYPT_P,
-) -> object:
+) -> Any:
     """
     Derive an Ed25519PrivateKey from a user passphrase and salt using scrypt.
 
@@ -121,7 +122,7 @@ def derive_key(
 def init_signing_keys(
     passphrase: str,
     salt: bytes | None = None,
-) -> tuple[StoredSigningMeta, object]:
+) -> tuple[StoredSigningMeta, Any]:
     """
     Initialize signing keys from passphrase.
 
@@ -148,7 +149,7 @@ def init_signing_keys(
     return meta, private_key
 
 
-def sign_payload(private_key: object, payload: bytes) -> str:
+def sign_payload(private_key: Any, payload: bytes) -> str:
     """
     Sign a payload using the derived Ed25519 private key.
 
@@ -181,7 +182,7 @@ def verify_signature(
         verify_fn = public_key.verify
         verify_fn(sig_bytes, payload)
         return True
-    except tuple([invalid_sig_cls, ValueError, Exception]):
+    except (invalid_sig_cls, ValueError, Exception):
         return False
 
 
@@ -201,6 +202,6 @@ def verify_passphrase(passphrase: str, meta: StoredSigningMeta) -> bool:
         encoding_raw = serialization.Encoding.Raw
         format_raw = serialization.PublicFormat.Raw
         pub_bytes = pub_key.public_bytes(encoding=encoding_raw, format=format_raw)
-        return pub_bytes.hex() == meta.public_key_hex
+        return bool(pub_bytes.hex() == meta.public_key_hex)
     except Exception:
         return False

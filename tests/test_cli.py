@@ -62,7 +62,27 @@ def test_cli_subprocess_invocation() -> None:
         capture_output=True,
         text=True,
         check=False,
+        timeout=30,
     )
     assert result.returncode == 0
     data = json.loads(result.stdout)
     assert data["version"] == __version__
+
+
+def test_core_import_isolation_and_no_warnings() -> None:
+    """Assert import swallo never loads optional extras and emits zero warnings."""
+    cmd = [
+        sys.executable,
+        "-W",
+        "error",
+        "-c",
+        (
+            "import swallo\n"
+            "import sys\n"
+            "assert 'mcp' not in sys.modules, 'mcp leaked into core runtime'\n"
+            "assert 'cryptography' not in sys.modules, 'cryptography leaked into core runtime'\n"
+            "assert 'tiktoken' not in sys.modules, 'tiktoken leaked into core runtime'\n"
+        ),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=30)  # noqa: S603
+    assert proc.returncode == 0, f"Import isolation check failed: {proc.stderr}"

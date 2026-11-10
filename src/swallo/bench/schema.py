@@ -101,9 +101,9 @@ class BenchResults:
                 results.append(
                     BenchResultEntry(
                         test=str(r.get("test", "")),
-                        n=int(r.get("n", 0)),
-                        value=float(r.get("value", 0.0)),
-                        ci=[float(ci_raw[0]), float(ci_raw[1])] if len(ci_raw) >= 2
+                        n=int(str(r.get("n", 0))),
+                        value=float(str(r.get("value", 0.0))),
+                        ci=[float(str(ci_raw[0])), float(str(ci_raw[1]))] if len(ci_raw) >= 2
                         else [0.0, 0.0],
                     )
                 )
@@ -111,7 +111,7 @@ class BenchResults:
             tool_version=str(data.get("tool_version", "")),
             schema_version=str(data.get("schema_version", "0.1")),
             git_commit=str(data.get("git_commit", "")),
-            seed=int(data.get("seed", 0)),
+            seed=int(str(data.get("seed", 0))),
             environment=env,
             fixtures=fix,
             results=results,
