@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import codecs
 import re
 import time
 import urllib.parse
@@ -22,7 +23,7 @@ from swallo.redact.engine import Detector, Finding
 from swallo.redact.entropy import shannon_entropy
 
 # Bounded caps for decode-bomb defense
-MAX_DECODE_DEPTH = 2
+MAX_DECODE_DEPTH = 3
 MAX_DECODED_SIZE = 64 * 1024  # 64 KB
 MAX_SCAN_SECONDS = 0.5
 
@@ -30,6 +31,7 @@ MAX_SCAN_SECONDS = 0.5
 _BASE64_CANDIDATE_RE = re.compile(r"(?:\b[A-Za-z0-9+/]{20,}={0,2}(?=[^A-Za-z0-9+/=]|$))")
 _HEX_CANDIDATE_RE = re.compile(r"\b[0-9a-fA-F]{32,}\b")
 _URL_CANDIDATE_RE = re.compile(r"(?:%[0-9a-fA-F]{2}[A-Za-z0-9_.-]*)+")
+_TOKEN_CANDIDATE_RE = re.compile(r"\b[A-Za-z0-9_\-]{20,}\b")
 _ZERO_WIDTH_CHARS = ("\u200b", "\u200c", "\u200d", "\ufeff")
 
 
@@ -106,6 +108,10 @@ class DecodedVariantDetector:
                                 matched_text=candidate,
                                 severity="high",
                             )
+                    if depth + 1 < self.max_depth:
+                        yield from self._scan_recursive(
+                            decoded_str, depth=depth + 1, start_time=start_time
+                        )
             except (binascii.Error, ValueError):
                 continue
 
@@ -132,6 +138,10 @@ class DecodedVariantDetector:
                                 matched_text=candidate,
                                 severity="high",
                             )
+                    if depth + 1 < self.max_depth:
+                        yield from self._scan_recursive(
+                            decoded_str, depth=depth + 1, start_time=start_time
+                        )
             except (binascii.Error, ValueError):
                 continue
 
@@ -153,6 +163,10 @@ class DecodedVariantDetector:
                                 matched_text=candidate,
                                 severity="high",
                             )
+                    if depth + 1 < self.max_depth:
+                        yield from self._scan_recursive(
+                            decoded_str, depth=depth + 1, start_time=start_time
+                        )
             except (binascii.Error, ValueError):
                 continue
 
@@ -170,6 +184,36 @@ class DecodedVariantDetector:
                             matched_text="<zero_width_hidden_payload>",
                             severity="high",
                         )
+
+        # 5. Rot13 and Reversal
+        for match in _TOKEN_CANDIDATE_RE.finditer(text):
+            if (time.monotonic() - start_time) > self.time_limit:
+                break
+            candidate = match.group(0)
+            # Reversal check
+            rev_candidate = candidate[::-1]
+            for det in self.inner_detectors:
+                for inner_f in det.scan(rev_candidate):
+                    yield Finding(
+                        detector=f"{self.name}:reversed:{det.name}",
+                        kind=f"reversed_{inner_f.kind}",
+                        start=match.start(),
+                        end=match.end(),
+                        matched_text=candidate,
+                        severity="high",
+                    )
+            # Rot13 check
+            rot13_candidate = codecs.decode(candidate, "rot_13")
+            for det in self.inner_detectors:
+                for inner_f in det.scan(rot13_candidate):
+                    yield Finding(
+                        detector=f"{self.name}:rot13:{det.name}",
+                        kind=f"rot13_{inner_f.kind}",
+                        start=match.start(),
+                        end=match.end(),
+                        matched_text=candidate,
+                        severity="high",
+                    )
 
 
 class OpaqueBlobDetector:
