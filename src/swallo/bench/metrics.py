@@ -22,7 +22,7 @@ from swallo.redact.denylist import DenylistDetector
 from swallo.redact.engine import RedactionEngine
 from swallo.redact.entropy import EntropyDetector
 from swallo.redact.patterns import PatternDetector
-from swallo.schema.canonical import to_canonical_json
+from swallo.schema.canonical import canonicalize
 
 if TYPE_CHECKING:
     pass
@@ -109,7 +109,7 @@ def compute_latency_metrics(
     latencies_ms: list[float] = []
     for pkt in fixtures:
         t0 = time.perf_counter()
-        to_canonical_json(pkt)
+        canonicalize(pkt)
         t1 = time.perf_counter()
         latencies_ms.append((t1 - t0) * 1000.0)
 
@@ -140,9 +140,9 @@ def compute_determinism_metric(
     total = len(fixtures)
 
     for pkt in fixtures:
-        repr1 = to_canonical_json(pkt)
-        repr2 = to_canonical_json(pkt)
-        repr3 = to_canonical_json(pkt)
+        repr1 = canonicalize(pkt)
+        repr2 = canonicalize(pkt)
+        repr3 = canonicalize(pkt)
         if repr1 == repr2 == repr3:
             identical_count += 1
 
