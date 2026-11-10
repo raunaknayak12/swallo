@@ -214,6 +214,11 @@ def main(argv: list[str] | None = None) -> int:
 
         return run_mcp(sub_args)
 
+    if subcommand == "bench":
+        from swallo.commands.bench import run_bench
+
+        return run_bench(sub_args)
+
     # Unknown subcommand check with close-match suggestion
     if subcommand not in KNOWN_COMMANDS:
         suggestions = difflib.get_close_matches(subcommand, KNOWN_COMMANDS, n=3, cutoff=0.5)
