@@ -25,13 +25,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install lint and type checking tools
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ruff mypy pydantic
+          python -m pip install -e ".[dev,sign]"
 
       - name: Run Ruff check
-        run: python -m ruff check .
+        run: python -m ruff check src tests
 
       - name: Run Mypy strict
         run: python -m mypy src/swallo
@@ -43,9 +43,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.11", "3.12", "3.13"]
-        exclude:
-          - os: macos-latest
-            python-version: "3.11"
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -60,8 +57,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,sign]"
 
-      - name: Run Pytest test suite
-        run: python -m pytest
+      - name: Run Pytest test suite with coverage
+        run: python -m pytest --cov=swallo --cov-report=xml --cov-report=term
 
   core-only:
     runs-on: ubuntu-latest
@@ -79,17 +76,17 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install .
 
-      - name: Verify zero non-standard runtime dependencies
+      - name: Verify zero non-standard runtime dependencies & zero warnings
         run: |
-          python -c "import swallo; print('swallo version:', swallo.__version__)"
-          python -c "import sys; assert 'cryptography' not in sys.modules; assert 'tiktoken' not in sys.modules; print('Verified core runtime dependency isolation')"
+          python -W error -c "import swallo; print('swallo version:', swallo.__version__)"
+          python -c "import sys; assert 'cryptography' not in sys.modules; assert 'tiktoken' not in sys.modules; assert 'mcp' not in sys.modules; print('Verified core runtime dependency isolation')"
 
       - name: Run core tests with pytest
         run: |
           python -m pip install pytest hypothesis
           python -m pytest
 
-  pip-audit:
+  security-scan:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -100,11 +97,16 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run pip-audit security vulnerability scan
+      - name: Install audit tools
         run: |
-          python -m pip install --upgrade pip setuptools
-          python -m pip install pip-audit .
-          python -m pip_audit
+          python -m pip install --upgrade pip
+          python -m pip install pip-audit bandit .
+
+      - name: Run pip-audit vulnerability scan
+        run: python -m pip_audit
+
+      - name: Run Bandit AST security scan
+        run: python -m bandit -r src/swallo -ll -q
 
   build-and-check:
     runs-on: ubuntu-latest
