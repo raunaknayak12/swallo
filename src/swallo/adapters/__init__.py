@@ -4,6 +4,7 @@ Adapters for delivering context packets to target IDE environments and chat.
 
 from __future__ import annotations
 
+from swallo.adapters.antigravity import AntigravityAdapter
 from swallo.adapters.base import (
     BaseAdapter,
     DeliveryResult,
@@ -19,6 +20,7 @@ from swallo.adapters.registry import (
 )
 
 __all__ = [
+    "AntigravityAdapter",
     "BaseAdapter",
     "ChatAdapter",
     "ClaudeCodeAdapter",

@@ -9,6 +9,7 @@ Per CLI_AND_MCP_SPEC.md and TRD.md §7:
 
 from __future__ import annotations
 
+from swallo.adapters.antigravity import AntigravityAdapter
 from swallo.adapters.base import BaseAdapter
 from swallo.adapters.chat import ChatAdapter
 from swallo.adapters.claude_code import ClaudeCodeAdapter
@@ -17,6 +18,7 @@ from swallo.errors import UsageError
 # Registry mapping canonical target name to adapter class
 _ADAPTER_CLASSES: dict[str, type[BaseAdapter]] = {
     "claude-code": ClaudeCodeAdapter,
+    "antigravity": AntigravityAdapter,
     "chat": ChatAdapter,
 }
 
@@ -24,6 +26,8 @@ _ADAPTER_CLASSES: dict[str, type[BaseAdapter]] = {
 _ALIASES: dict[str, str] = {
     "claude_code": "claude-code",
     "claude": "claude-code",
+    "agy": "antigravity",
+    "gemini": "antigravity",
 }
 
 
