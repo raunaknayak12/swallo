@@ -204,15 +204,15 @@ The following capabilities are explicitly deferred to v0.2 and are out of scope 
 
 | Gate Check | Status | Verification Evidence / Details |
 |---|---|---|
-| Steps 0–5 tests green on 3 OSs | **PASS** | 342 tests pass across Python 3.11, 3.12, 3.13 on Linux, macOS, and Windows. |
+| Steps 0–5 tests green on 3 OSs | **PASS** | 355 tests pass across Python 3.11, 3.12, 3.13 on Linux, macOS, and Windows. |
 | F2, F3, F4, F5, F10 guard tests pass | **PASS** | Automated regression tests in `test_redact_detectors.py`, `test_importer_security.py`, `test_mcp_server.py`. |
 | Independent review of F1–F5 | **pending independent reviewer** | Formal boundary: implementer cannot review own security findings. Left for external auditor. |
 | Claude Code spike recorded; per-target behavior | **PASS** | Documented in ADR-029, `src/swallo/adapters/`, and TRD. |
 | Core-only CI job green (no extras installed) | **PASS** | Isolated fresh venv import emits 0 warnings; zero optional modules imported. |
 | `swallo doctor` passes on clean environment | **PASS** | Verified after `swallo init`. |
 | Docs match behavior; changelog updated | **PASS** | README updated with 23 CLI commands, exit codes, architecture, MCP guide; CHANGELOG updated. |
-| TestPyPI install & smoke test | **PASS** | Built wheel install smoke test verified locally; manual commands provided for remote upload. |
-| Name availability confirmed | **PASS** | PyPI and TestPyPI availability verified (ADR-032). |
+| TestPyPI install & smoke test | **pending manual step** | Local wheel smoke test passed in isolated venv; remote upload and multi-OS smoke test pending maintainer manual execution. |
+| Name availability confirmed | **pending manual step** | PyPI and TestPyPI availability verified (ADR-032); final reservation upload pending maintainer manual execution. |
 
 ## Pending decisions
 - Antigravity and other target adapter details after verification.
