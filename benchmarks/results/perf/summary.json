@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "swallo_version": "0.1.0",
-  "git_commit": "a8b994cf46873d11857d4330665608bcb9ec6c7d",
+  "git_commit": "7e445057f61284414da19dc599a3eb0652132bff",
   "environment": {
     "os": "Windows 11",
     "architecture": "64bit",
@@ -14,126 +14,148 @@
   "benchmarks": {
     "redaction": {
       "1MB": {
-        "size_bytes": 1048608,
+        "size_bytes": 1048585,
         "latency_seconds": {
-          "median": 0.251292,
-          "iqr": 0.005833,
-          "min": 0.234983,
-          "max": 0.25396
+          "median": 0.12116,
+          "iqr": 0.007181,
+          "min": 0.115482,
+          "max": 0.135846,
+          "std_dev": 0.005676
         },
-        "throughput_mb_s": 3.98,
-        "rounds": 5,
-        "warmups": 2
+        "throughput_mb_s": 8.25,
+        "rounds": 20,
+        "warmups": 5
       },
       "5MB": {
-        "size_bytes": 5242944,
+        "size_bytes": 5243160,
         "latency_seconds": {
-          "median": 0.832892,
-          "iqr": 0.014402,
-          "min": 0.822564,
-          "max": 0.98486
+          "median": 0.594395,
+          "iqr": 0.01831,
+          "min": 0.579509,
+          "max": 0.618124,
+          "std_dev": 0.012331
         },
-        "throughput_mb_s": 6.0,
-        "rounds": 5,
-        "warmups": 2
+        "throughput_mb_s": 8.41,
+        "rounds": 20,
+        "warmups": 5
       }
     },
     "canonical_hashing": {
       "10_items": {
         "item_count": 10,
         "latency_seconds": {
-          "median": 6.9e-05,
-          "iqr": 5e-06,
-          "min": 6.4e-05,
-          "max": 7.8e-05
+          "median": 8.6e-05,
+          "iqr": 2.6e-05,
+          "min": 7.9e-05,
+          "max": 0.00019,
+          "std_dev": 3.3e-05
         },
-        "rounds": 15,
-        "warmups": 3
+        "rounds": 25,
+        "warmups": 5
       },
       "100_items": {
         "item_count": 100,
         "latency_seconds": {
-          "median": 0.000493,
-          "iqr": 1.6e-05,
-          "min": 0.000483,
-          "max": 0.000633
+          "median": 0.000444,
+          "iqr": 0.000273,
+          "min": 0.000399,
+          "max": 0.001077,
+          "std_dev": 0.000176
         },
-        "rounds": 15,
-        "warmups": 3
+        "rounds": 25,
+        "warmups": 5
       },
       "500_items": {
         "item_count": 500,
         "latency_seconds": {
-          "median": 0.002459,
-          "iqr": 0.000141,
-          "min": 0.00237,
-          "max": 0.003204
+          "median": 0.002064,
+          "iqr": 0.000231,
+          "min": 0.002012,
+          "max": 0.002658,
+          "std_dev": 0.0002
         },
-        "rounds": 15,
-        "warmups": 3
+        "rounds": 25,
+        "warmups": 5
+      },
+      "1000_items": {
+        "item_count": 1000,
+        "latency_seconds": {
+          "median": 0.004351,
+          "iqr": 0.000651,
+          "min": 0.00409,
+          "max": 0.014975,
+          "std_dev": 0.002803
+        },
+        "rounds": 25,
+        "warmups": 5
       }
     },
     "sqlite_wal": {
       "single_writer": {
-        "writes_count": 300,
+        "writes_count": 1000,
         "latency_seconds": {
-          "median": 0.338237,
-          "iqr": 0.018063,
-          "min": 0.333412,
-          "max": 0.420752
+          "median": 1.027276,
+          "iqr": 0.038426,
+          "min": 0.993515,
+          "max": 1.269707,
+          "std_dev": 0.076495
         },
-        "writes_per_sec": 887.0,
-        "rounds": 5
+        "writes_per_sec": 973.4,
+        "rounds": 10
       }
     },
     "mcp_latency": {
       "list_contexts": {
-        "median": 0.003187,
-        "iqr": 0.000905,
-        "min": 0.0025,
-        "max": 0.00388
+        "median": 0.002694,
+        "iqr": 0.000424,
+        "min": 0.001907,
+        "max": 0.004069,
+        "std_dev": 0.000483
       },
       "save_context_draft": {
-        "median": 0.003792,
-        "iqr": 0.000586,
-        "min": 0.002673,
-        "max": 0.004453
+        "median": 0.014204,
+        "iqr": 0.000833,
+        "min": 0.013447,
+        "max": 0.022785,
+        "std_dev": 0.001789
       },
-      "rounds": 15
+      "rounds": 25
     },
     "cli_cold_start": {
       "swallo_help": {
-        "median": 0.211892,
-        "iqr": 0.0091,
-        "min": 0.191162,
-        "max": 0.23025
+        "median": 0.181014,
+        "iqr": 0.005158,
+        "min": 0.155081,
+        "max": 0.201968,
+        "std_dev": 0.012311
       },
       "swallo_list": {
-        "median": 0.373965,
-        "iqr": 0.006405,
-        "min": 0.362299,
-        "max": 0.37587
+        "median": 0.34923,
+        "iqr": 0.02451,
+        "min": 0.322038,
+        "max": 0.374683,
+        "std_dev": 0.016388
       }
     },
     "memory": {
       "1MB": {
-        "tracemalloc_peak_bytes": 3355,
+        "tracemalloc_peak_bytes": 3754,
         "tracemalloc_peak_mb": 0.0,
         "rss_delta_mb": 0.0,
-        "rss_current_mb": 39.95
+        "rss_current_mb": 40.86
       },
       "5MB": {
-        "tracemalloc_peak_bytes": 3334,
+        "tracemalloc_peak_bytes": 3127,
         "tracemalloc_peak_mb": 0.0,
         "rss_delta_mb": -1.0,
-        "rss_current_mb": 43.96
+        "rss_current_mb": 45.42
       }
     },
     "token_reduction": {
-      "raw_transcript_tokens": 2600,
-      "packet_tokens": 2538,
-      "tokens_saved": 62,
-      "reduction_percentage": 2.38,
+      "raw_transcript_tokens": 1175,
+      "packet_tokens": 785,
+      "tokens_saved": 390,
+      "reduction_percentage": 33.19,
       "tokenizer": "cl100k_base"
     }
   }
