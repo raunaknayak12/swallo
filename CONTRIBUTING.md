@@ -4,7 +4,7 @@ Thanks for helping. This project handles private conversation data, so changes a
 
 ## Ground rules
 
-- By contributing you agree your contributions are licensed under the MIT license.
+- By contributing you agree your contributions are dual-licensed under both the MIT License and the Apache License, Version 2.0.
 - Pure Python. New runtime dependencies need a written justification (see `docs/TRD.md`, dependency policy).
 - No network access in the core. Optional features (`[remote]`) must be opt-in and off by default.
 - Never log, print or store secret or transcript text in error paths. Tests enforce this.
@@ -35,4 +35,4 @@ Only consented, redacted transcripts. See `docs/BENCHMARKS.md` and `docs/templat
 
 ## Code of conduct
 
-Be respectful and constructive. A formal code of conduct file should be added before public launch.
+Please review and adhere to our [Code of Conduct](CODE_OF_CONDUCT.md) (Contributor Covenant v2.1). Violations can be reported to conduct@swallo.dev.

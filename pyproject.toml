@@ -7,7 +7,7 @@ name = "swallo"
 version = "0.1.0"
 description = "Portable, reviewable handoff between any chat agent and any IDE"
 readme = "README.md"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 authors = [
     { name = "Raunak Nayak" }
 ]
@@ -16,6 +16,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",

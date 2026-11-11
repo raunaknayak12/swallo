@@ -16,7 +16,9 @@ All notable changes to this project will be documented here. Format follows Keep
 - Model Context Protocol (MCP) server with draft quotas, per-session token bucket, and circuit breakers.
 - Adapters for Claude Code, Cursor, and Antigravity IDEs.
 - Optional passphrase-derived Ed25519 digital signatures (`[sign]` extra via cryptography).
-- Deterministic and statistical benchmark harnesses (`swallo bench run` and `swallo bench verify`).
+- Deterministic and statistical benchmark harnesses (`swallo bench run` and `swallo bench verify`) with 164-sample anti-overfitting corpus and 20-round realistic-transcript throughput suite.
+- Dual licensing under MIT and Apache-2.0 (`LICENSE-MIT` and `LICENSE-APACHE`).
+- Contributor Covenant Code of Conduct v2.1 (`CODE_OF_CONDUCT.md`).
 
 ### Security
 - Defense matrix against Zip-Slip, decompression bombs, symlink escapes, path traversal, and JSON nesting limits.

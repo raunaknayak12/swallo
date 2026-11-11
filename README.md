@@ -215,6 +215,16 @@ Add to `.gemini/antigravity/mcp/swallo.json` or your MCP server configuration:
 
 ---
 
+## Community & Code of Conduct
+
+Swallo is an open, welcoming community. All participants are expected to adhere to our [Code of Conduct](CODE_OF_CONDUCT.md) (Contributor Covenant v2.1).
+
+---
+
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is dual-licensed under:
+- [MIT License](LICENSE-MIT)
+- [Apache License, Version 2.0](LICENSE-APACHE)
+
+at your option. See [LICENSE](LICENSE) for details.

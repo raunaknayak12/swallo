@@ -1,4 +1,13 @@
-MIT License
+Swallo is dual-licensed under:
+
+  * The Apache License, Version 2.0 (LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
+  * The MIT License (LICENSE-MIT or http://opensource.org/licenses/MIT)
+
+at your option.
+
+---
+
+### MIT License
 
 Copyright (c) 2026 swallo contributors
 
@@ -19,3 +28,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+### Apache License, Version 2.0
+
+See LICENSE-APACHE for the complete terms and conditions of the Apache License, Version 2.0.
