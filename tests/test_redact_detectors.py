@@ -4,8 +4,6 @@ Unit tests for pattern, entropy, and denylist secret detectors.
 
 from __future__ import annotations
 
-import secrets
-
 from swallo.redact.denylist import DenylistDetector
 from swallo.redact.engine import RedactionEngine
 from swallo.redact.entropy import EntropyDetector, shannon_entropy
@@ -66,8 +64,8 @@ def test_pattern_detector_bearer_and_password() -> None:
 
 
 def test_entropy_detector_high_and_low() -> None:
-    # High entropy token: random 32 bytes hex encoded
-    high_secret = secrets.token_urlsafe(32)
+    # High entropy token (alphanumeric to ensure clean word-boundary matching)
+    high_secret = "k8J2mN9pQ4vX7zL1wE5rT0yU3iO6sA8dF4gH9jK2lZ5x"
     assert shannon_entropy(high_secret) >= 4.3
 
     low_string = "a" * 32
