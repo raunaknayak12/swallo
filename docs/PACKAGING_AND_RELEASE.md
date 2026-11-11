@@ -31,8 +31,8 @@ dynamic = ["version"]
 description = "Reviewable handoff of AI conversation context between chat agents and IDEs"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"                     # SPDX expression (PEP 639); verify your build backend version supports it
-license-files = ["LICENSE"]
+license = "MIT OR Apache-2.0"       # SPDX expression (PEP 639)
+license-files = ["LICENSE*", "LICENSE-MIT", "LICENSE-APACHE"]
 authors = [{ name = "TBD" }]
 keywords = ["mcp", "context", "handoff", "ai", "agents"]
 classifiers = [
@@ -111,6 +111,41 @@ Support each minor version of Python while it is supported upstream (verify date
 
 `pip install swallo` must work with no compiler and no network access at runtime. Missing optional extras give a clear message naming the extra to install.
 
-## 10. License
+## 10. License & Code of Conduct
 
-MIT (decided). The `LICENSE` file is included in this pack; its copyright line reads "swallo contributors" and can be changed to a named holder. Include the file in sdist and wheel, and list third-party dependency licenses at release time.
+Swallo is dual-licensed under the **MIT License** (`LICENSE-MIT`) and the **Apache License, Version 2.0** (`LICENSE-APACHE`), at the user's option. All contributors and participants must adhere to the [Code of Conduct](CODE_OF_CONDUCT.md) (Contributor Covenant v2.1).
+
+---
+
+## 11. Publishing to PyPI and TestPyPI
+
+### Step 1: Clean Build & Validation
+```bash
+# Clean existing dist/
+rm -rf dist/
+python -m build
+twine check --strict dist/*
+```
+
+### Step 2: TestPyPI Dry Run & Smoke Test
+```bash
+# Upload to TestPyPI
+twine upload -r testpypi dist/*
+
+# Test installation in clean venv from TestPyPI
+python -m venv test_env
+source test_env/bin/activate # or test_env\Scripts\activate on Windows
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ swallo
+swallo --version
+swallo --help
+```
+
+### Step 3: Production PyPI Release
+```bash
+# Option A: Manual upload via API token
+twine upload dist/*
+
+# Option B: Automated via GitHub Actions Trusted Publishing (Recommended)
+# Tagging a release (e.g. git tag v0.1.0 && git push origin v0.1.0)
+# triggers .github/workflows/release.yml using OpenID Connect (OIDC).
+```

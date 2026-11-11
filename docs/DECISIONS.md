@@ -166,6 +166,11 @@ Short records of decisions agreed during design. Format: context, decision, cons
   - Note: `swallow` is registered on PyPI by an unrelated third party; our exact package name is `swallo`.
 - **Status:** Accepted.
 
+## ADR-033: Dual Licensing (MIT OR Apache-2.0) & Code of Conduct
+- **Context:** Enterprise users and agent developer toolchains require explicit patent grant protections (provided by Apache 2.0) while retaining the permissive compatibility of MIT.
+- **Decision:** Swallo is dual-licensed under `MIT OR Apache-2.0` (SPDX expression). Both `LICENSE-MIT` and `LICENSE-APACHE` are distributed at the repository root and embedded in the package distribution wheel and source archive. The project also adopts the Contributor Covenant v2.1 as `CODE_OF_CONDUCT.md`.
+- **Status:** Accepted.
+
 ## v0.2 Candidates (Deferred from v0.1)
 The following capabilities are explicitly deferred to v0.2 and are out of scope for v0.1:
 1. **Remote HTTP Mode (`[remote]` extra):**
