@@ -26,6 +26,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev,tokens] psutil pyperf pytest-benchmark
 
+      - name: Run deterministic benchmarks and verify
+        run: |
+          python -m benchmarks.deterministic.runner
+          swallo bench verify benchmarks/results/deterministic.json
+
       - name: Run statistical benchmarks
         run: |
           python -m benchmarks.perf.runner
