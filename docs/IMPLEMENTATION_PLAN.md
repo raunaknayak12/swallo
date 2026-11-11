@@ -270,14 +270,14 @@ If an IDE does not follow the pointer to a data file, record the fallback (manua
 
 ## 16. v0.1 release gate
 
-- [ ] Steps 0-5 complete with all "done when" tests green on three operating systems
-- [ ] F2, F3, F4, F5 and F10 tests pass; independent review of F1-F5 done
-- [ ] Claude Code spike recorded; per-target behavior documented
-- [ ] Core-only CI job green (no extras installed)
-- [ ] `swallo doctor` passes on a clean environment
-- [ ] Docs match behavior; changelog updated
-- [ ] TestPyPI install and smoke test on all three operating systems
-- [ ] Name availability confirmed
+- [x] Steps 0-5 complete with all "done when" tests green on three operating systems (355 passed)
+- [ ] F2, F3, F4, F5 and F10 tests pass (automated regression tests pass; independent review of F1-F5 pending independent reviewer)
+- [x] Claude Code spike recorded; per-target behavior documented
+- [x] Core-only CI job green (no extras installed; zero optional modules imported)
+- [x] `swallo doctor` passes on a clean environment
+- [x] Docs match behavior; changelog updated
+- [ ] TestPyPI install and smoke test on all three operating systems (pending manual step; local wheel smoke test passed)
+- [ ] Name availability confirmed (pending manual step; availability checked, pending upload)
 
 ## 17. Build risks and mitigations
 
