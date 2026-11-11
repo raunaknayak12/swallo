@@ -1,7 +1,7 @@
 # Swallo Benchmark Suite & Performance Reference
 
 > **Integrity & Disclosure Standard**<br>
-> Every metric reported on this page was produced by scripts executed against Swallo v0.1.0 (commit `7e445057f6`).<br>
+> Every metric reported on this page was produced by scripts executed against Swallo v0.1.0 (commit `9c11c4e049`).<br>
 > No numbers are estimated or hardcoded. No prompt-injection detection rates are claimed; only structural defense invariants are tested.
 
 ---
@@ -54,7 +54,7 @@ Tests multi-layer encoding evasion and denial-of-service cap enforcement.
 | **Reversal** | `100.0%` | Candidate verified |
 | **Zero-Width Steganography** | `100.0%` | Binary bit extraction |
 | **Nested Depth 2 & 3** | `100.0%` / `100.0%` | Recursive scan |
-| **Large Payload Bomb (>64 KB)** | Handled (`0.031s`) | Blocked at 64 KB cap |
+| **Large Payload Bomb (>64 KB)** | Handled (`0.047s`) | Blocked at 64 KB cap |
 | **Deep Recursion Bomb (>3 depths)** | Handled (`0.0s`) | Halts safely at depth 3 |
 
 ### 3.3 Boundary Defense & Hostile Archive Matrix
@@ -98,32 +98,32 @@ Tests multi-layer encoding evasion and denial-of-service cap enforcement.
 
 | Payload Size | Median Latency | IQR | Std Dev | Throughput | Rounds / Warmups |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1 MB Transcript** | `0.12116s` | `0.007181s` | `0.005676s` | **`8.25 MB/s`** | 20 / 5 |
-| **5 MB Transcript** | `0.594395s` | `0.01831s` | `0.012331s` | **`8.41 MB/s`** | 20 / 5 |
+| **1 MB Transcript** | `0.182776s` | `0.051279s` | `0.027704s` | **`5.47 MB/s`** | 20 / 5 |
+| **5 MB Transcript** | `0.741137s` | `0.037426s` | `0.033023s` | **`6.75 MB/s`** | 20 / 5 |
 
 ### 4.2 Canonical JSON Serialization & SHA-256 Hashing
 
 | Packet Scale | Median Latency | IQR | Min / Max |
 | :--- | :--- | :--- | :--- |
-| **10 Items** | `0.086 ms` | `0.026 ms` | `0.079 ms` / `0.190 ms` |
-| **100 Items** | `0.444 ms` | `0.273 ms` | `0.399 ms` / `1.077 ms` |
-| **500 Items** | `2.064 ms` | `0.231 ms` | `2.012 ms` / `2.658 ms` |
-| **1000 Items** | `4.351 ms` | `0.651 ms` | `4.090 ms` / `14.975 ms` |
+| **10 Items** | `0.102 ms` | `0.015 ms` | `0.085 ms` / `0.117 ms` |
+| **100 Items** | `0.515 ms` | `0.041 ms` | `0.475 ms` / `0.623 ms` |
+| **500 Items** | `2.424 ms` | `0.155 ms` | `2.322 ms` / `2.862 ms` |
+| **1000 Items** | `5.026 ms` | `0.283 ms` | `4.853 ms` / `14.647 ms` |
 
 ### 4.3 SQLite WAL Throughput & MCP Latencies
 
-- **SQLite WAL Write Throughput**: `973.4 writes/sec` (Median: `1.027276s` for 1000 writes).
-- **MCP `list_contexts` Latency**: `2.69 ms` (IQR: `0.42 ms`).
-- **MCP `save_context` (Draft) Latency**: `14.20 ms` (IQR: `0.83 ms`).
-- **CLI Cold Start (`swallo --help`)**: `181.0 ms`.
+- **SQLite WAL Write Throughput**: `902.4 writes/sec` (Median: `1.108143s` for 1000 writes).
+- **MCP `list_contexts` Latency**: `3.75 ms` (IQR: `1.27 ms`).
+- **MCP `save_context` (Draft) Latency**: `17.22 ms` (IQR: `1.36 ms`).
+- **CLI Cold Start (`swallo --help`)**: `78.0 ms`.
 
 ---
 
 ## 5. Memory Profiling & Token Efficiency
 
 - **Tracemalloc vs RSS Cross-Check**:
-  - 1 MB Ingest: Tracemalloc peak: `3754 bytes`, Process RSS: `40.86 MB`.
-  - 5 MB Ingest: Tracemalloc peak: `3127 bytes`, Process RSS: `45.42 MB`.
+  - 1 MB Ingest: Tracemalloc peak: `3754 bytes`, Process RSS: `41.16 MB`.
+  - 5 MB Ingest: Tracemalloc peak: `3362 bytes`, Process RSS: `45.44 MB`.
 - **Token Reduction Efficiency**:
   - Raw Transcript Tokens (50 turns): `1175`
   - Compact Context Packet Tokens: `785`

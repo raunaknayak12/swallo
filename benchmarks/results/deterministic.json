@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "swallo_version": "0.1.0",
-  "git_commit": "7e445057f61284414da19dc599a3eb0652132bff",
+  "git_commit": "9c11c4e049b69f6af1e25df1cf2687ccf1d36435",
   "environment": {
     "os": "Windows 11",
     "architecture": "64bit",
@@ -42,7 +42,7 @@
       "nested_depth_2_recall": 1.0,
       "nested_depth_3_recall": 1.0,
       "size_cap_exceeded_handled": true,
-      "size_cap_duration_s": 0.031,
+      "size_cap_duration_s": 0.047,
       "depth_cap_exceeded_handled": true,
       "depth_cap_duration_s": 0.0
     },

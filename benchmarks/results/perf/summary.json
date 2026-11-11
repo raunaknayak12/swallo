@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "swallo_version": "0.1.0",
-  "git_commit": "7e445057f61284414da19dc599a3eb0652132bff",
+  "git_commit": "9c11c4e049b69f6af1e25df1cf2687ccf1d36435",
   "environment": {
     "os": "Windows 11",
     "architecture": "64bit",
@@ -16,26 +16,26 @@
       "1MB": {
         "size_bytes": 1048585,
         "latency_seconds": {
-          "median": 0.12116,
-          "iqr": 0.007181,
-          "min": 0.115482,
-          "max": 0.135846,
-          "std_dev": 0.005676
+          "median": 0.182776,
+          "iqr": 0.051279,
+          "min": 0.139839,
+          "max": 0.236076,
+          "std_dev": 0.027704
         },
-        "throughput_mb_s": 8.25,
+        "throughput_mb_s": 5.47,
         "rounds": 20,
         "warmups": 5
       },
       "5MB": {
         "size_bytes": 5243160,
         "latency_seconds": {
-          "median": 0.594395,
-          "iqr": 0.01831,
-          "min": 0.579509,
-          "max": 0.618124,
-          "std_dev": 0.012331
+          "median": 0.741137,
+          "iqr": 0.037426,
+          "min": 0.701635,
+          "max": 0.84206,
+          "std_dev": 0.033023
         },
-        "throughput_mb_s": 8.41,
+        "throughput_mb_s": 6.75,
         "rounds": 20,
         "warmups": 5
       }
@@ -44,11 +44,11 @@
       "10_items": {
         "item_count": 10,
         "latency_seconds": {
-          "median": 8.6e-05,
-          "iqr": 2.6e-05,
-          "min": 7.9e-05,
-          "max": 0.00019,
-          "std_dev": 3.3e-05
+          "median": 0.000102,
+          "iqr": 1.5e-05,
+          "min": 8.5e-05,
+          "max": 0.000117,
+          "std_dev": 9e-06
         },
         "rounds": 25,
         "warmups": 5
@@ -56,11 +56,11 @@
       "100_items": {
         "item_count": 100,
         "latency_seconds": {
-          "median": 0.000444,
-          "iqr": 0.000273,
-          "min": 0.000399,
-          "max": 0.001077,
-          "std_dev": 0.000176
+          "median": 0.000515,
+          "iqr": 4.1e-05,
+          "min": 0.000475,
+          "max": 0.000623,
+          "std_dev": 3.1e-05
         },
         "rounds": 25,
         "warmups": 5
@@ -68,11 +68,11 @@
       "500_items": {
         "item_count": 500,
         "latency_seconds": {
-          "median": 0.002064,
-          "iqr": 0.000231,
-          "min": 0.002012,
-          "max": 0.002658,
-          "std_dev": 0.0002
+          "median": 0.002424,
+          "iqr": 0.000155,
+          "min": 0.002322,
+          "max": 0.002862,
+          "std_dev": 0.000125
         },
         "rounds": 25,
         "warmups": 5
@@ -80,11 +80,11 @@
       "1000_items": {
         "item_count": 1000,
         "latency_seconds": {
-          "median": 0.004351,
-          "iqr": 0.000651,
-          "min": 0.00409,
-          "max": 0.014975,
-          "std_dev": 0.002803
+          "median": 0.005026,
+          "iqr": 0.000283,
+          "min": 0.004853,
+          "max": 0.014647,
+          "std_dev": 0.001895
         },
         "rounds": 25,
         "warmups": 5
@@ -94,47 +94,47 @@
       "single_writer": {
         "writes_count": 1000,
         "latency_seconds": {
-          "median": 1.027276,
-          "iqr": 0.038426,
-          "min": 0.993515,
-          "max": 1.269707,
-          "std_dev": 0.076495
+          "median": 1.108143,
+          "iqr": 0.056139,
+          "min": 1.051101,
+          "max": 1.330591,
+          "std_dev": 0.076803
         },
-        "writes_per_sec": 973.4,
+        "writes_per_sec": 902.4,
         "rounds": 10
       }
     },
     "mcp_latency": {
       "list_contexts": {
-        "median": 0.002694,
-        "iqr": 0.000424,
-        "min": 0.001907,
-        "max": 0.004069,
-        "std_dev": 0.000483
+        "median": 0.003755,
+        "iqr": 0.001271,
+        "min": 0.002531,
+        "max": 0.004609,
+        "std_dev": 0.000685
       },
       "save_context_draft": {
-        "median": 0.014204,
-        "iqr": 0.000833,
-        "min": 0.013447,
-        "max": 0.022785,
-        "std_dev": 0.001789
+        "median": 0.017221,
+        "iqr": 0.001363,
+        "min": 0.015482,
+        "max": 0.035852,
+        "std_dev": 0.003837
       },
       "rounds": 25
     },
     "cli_cold_start": {
       "swallo_help": {
-        "median": 0.181014,
-        "iqr": 0.005158,
-        "min": 0.155081,
-        "max": 0.201968,
-        "std_dev": 0.012311
+        "median": 0.07797,
+        "iqr": 0.005552,
+        "min": 0.069203,
+        "max": 0.095272,
+        "std_dev": 0.006874
       },
       "swallo_list": {
-        "median": 0.34923,
-        "iqr": 0.02451,
-        "min": 0.322038,
-        "max": 0.374683,
-        "std_dev": 0.016388
+        "median": 0.268517,
+        "iqr": 0.021113,
+        "min": 0.228811,
+        "max": 0.285373,
+        "std_dev": 0.016458
       }
     },
     "memory": {
@@ -142,13 +142,13 @@
         "tracemalloc_peak_bytes": 3754,
         "tracemalloc_peak_mb": 0.0,
         "rss_delta_mb": 0.0,
-        "rss_current_mb": 40.86
+        "rss_current_mb": 41.16
       },
       "5MB": {
-        "tracemalloc_peak_bytes": 3127,
+        "tracemalloc_peak_bytes": 3362,
         "tracemalloc_peak_mb": 0.0,
         "rss_delta_mb": -1.0,
-        "rss_current_mb": 45.42
+        "rss_current_mb": 45.44
       }
     },
     "token_reduction": {

@@ -52,3 +52,5 @@ def test_pyproject_dual_license_declaration() -> None:
     classifiers = project_meta.get("classifiers", [])
     assert "License :: OSI Approved :: MIT License" in classifiers
     assert "License :: OSI Approved :: Apache Software License" in classifiers
+    for py_ver in ["3.11", "3.12", "3.13", "3.14", "3.15"]:
+        assert f"Programming Language :: Python :: {py_ver}" in classifiers
