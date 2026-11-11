@@ -66,6 +66,8 @@ The core runtime strictly requires only `pydantic>=2.0.0` and the Python standar
 
 ## Quick Start
 
+> For a complete 3-minute setup walkthrough for Claude Code, Cursor, and Antigravity IDEs, see the [Quickstart Guide](docs/QUICKSTART.md).
+
 1. **Initialize the local store:**
    ```bash
    swallo init
