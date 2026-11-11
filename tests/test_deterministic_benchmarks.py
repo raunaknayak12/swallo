@@ -23,6 +23,9 @@ def test_corpus_redaction_evaluation() -> None:
     assert res["pattern_recall"] >= 0.8
     assert res["pattern_false_positive_rate"] == 0.0
     assert res["entropy_detector_false_positive_rate"] == 0.0
+    assert res["corpus_total_samples"] >= 100
+    assert res["total_positive_samples"] >= 80
+    assert res["total_negative_samples"] >= 50
 
 
 def test_decoded_variants_evaluation() -> None:
