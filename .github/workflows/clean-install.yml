@@ -34,21 +34,37 @@ jobs:
           python -m twine check dist/*
 
       - name: Install built wheel into isolated environment
+        shell: bash
         run: |
           python -m venv test-venv
-          ${{ runner.os == 'Windows' && 'test-venv\Scripts\activate' || 'source test-venv/bin/activate' }}
-          python -m pip install --upgrade pip
-          python -m pip install dist/swallo-*.whl
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            VENV_PYTHON="test-venv/Scripts/python"
+          else
+            VENV_PYTHON="test-venv/bin/python"
+          fi
+          "$VENV_PYTHON" -m pip install --upgrade pip
+          "$VENV_PYTHON" -m pip install dist/*.whl
 
       - name: Test zero-warning import and dependency isolation
+        shell: bash
         run: |
-          ${{ runner.os == 'Windows' && 'test-venv\Scripts\activate' || 'source test-venv/bin/activate' }}
-          python -W error -c "import swallo; print('Imported swallo v' + swallo.__version__)"
-          python -c "import sys; assert 'mcp' not in sys.modules; assert 'cryptography' not in sys.modules; assert 'tiktoken' not in sys.modules; print('Verified isolation')"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            VENV_PYTHON="test-venv/Scripts/python"
+          else
+            VENV_PYTHON="test-venv/bin/python"
+          fi
+          "$VENV_PYTHON" -W error -c "import swallo; print('Imported swallo v' + swallo.__version__)"
+          "$VENV_PYTHON" -c "import sys; assert 'mcp' not in sys.modules; assert 'cryptography' not in sys.modules; assert 'tiktoken' not in sys.modules; print('Verified isolation')"
 
       - name: Verify CLI commands in temp directory
+        shell: bash
         run: |
-          ${{ runner.os == 'Windows' && 'test-venv\Scripts\activate' || 'source test-venv/bin/activate' }}
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            VENV_BIN="test-venv/Scripts"
+          else
+            VENV_BIN="test-venv/bin"
+          fi
+          export PATH="$PWD/$VENV_BIN:$PATH"
           swallo --help
           swallo version
           mkdir temp_workspace

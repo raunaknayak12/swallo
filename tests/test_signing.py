@@ -28,7 +28,19 @@ from swallo.store.signing import (
     verify_signature,
 )
 
+try:
+    import cryptography  # noqa: F401
 
+    HAS_CRYPTO = True
+except ImportError:
+    HAS_CRYPTO = False
+
+requires_crypto = pytest.mark.skipif(
+    not HAS_CRYPTO, reason="Passphrase signing requires the 'sign' extra ('swallo[sign]')"
+)
+
+
+@requires_crypto
 def test_known_vector_ed25519() -> None:
     passphrase = "swallo-benchmark-passphrase-vector"
     salt = b"deterministic_16"
@@ -52,6 +64,7 @@ def test_known_vector_ed25519() -> None:
     assert verify_signature(meta.public_key_hex, payload, tampered_sig) is False
 
 
+@requires_crypto
 def test_passphrase_verification() -> None:
     meta, _ = init_signing_keys("correct-horse-battery-staple")
     assert verify_passphrase("correct-horse-battery-staple", meta) is True
@@ -59,6 +72,7 @@ def test_passphrase_verification() -> None:
     assert verify_passphrase("", meta) is False
 
 
+@requires_crypto
 def test_metadata_save_and_load(tmp_path: Path) -> None:
     meta, _ = init_signing_keys("test_meta_passphrase")
     meta_path = tmp_path / "signing_meta.json"
@@ -71,6 +85,7 @@ def test_metadata_save_and_load(tmp_path: Path) -> None:
     assert loaded.scrypt_n == meta.scrypt_n
 
 
+@requires_crypto
 def test_approve_with_passphrase_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     # 1. Initialize store
     assert main(["init", "--store", str(tmp_path)]) == 0
