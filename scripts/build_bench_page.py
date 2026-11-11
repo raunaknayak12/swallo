@@ -11,8 +11,20 @@ Never invents, estimates, or hardcodes numbers.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
+from typing import Any
+
+from pydantic import TypeAdapter
+
+_DICT_ADAPTER = TypeAdapter(dict[str, Any])
+
+
+def _safe_load_json(file_path: Path) -> dict[str, Any]:
+    raw_content = file_path.read_text(encoding="utf-8")
+    try:
+        return _DICT_ADAPTER.validate_json(raw_content)
+    except Exception as parse_err:
+        raise ValueError(f"Failed to parse JSON from {file_path}: {parse_err}") from parse_err
 
 
 def generate_benchmarks_markdown() -> str:
@@ -22,8 +34,8 @@ def generate_benchmarks_markdown() -> str:
     if not det_path.is_file() or not perf_path.is_file():
         raise FileNotFoundError("Missing deterministic.json or perf/summary.json. Run benchmark suites first.")
 
-    det_data = json.loads(det_path.read_text(encoding="utf-8"))
-    perf_data = json.loads(perf_path.read_text(encoding="utf-8"))
+    det_data = _safe_load_json(det_path)
+    perf_data = _safe_load_json(perf_path)
 
     env_det = det_data.get("environment", {})
     env_perf = perf_data.get("environment", {})
@@ -40,8 +52,8 @@ def generate_benchmarks_markdown() -> str:
 
     md = f"""# Swallo Benchmark Suite & Performance Reference
 
-> **Integrity & Disclosure Standard**  
-> Every metric reported on this page was produced by scripts executed against Swallo v{det_data.get("swallo_version", "0.1.0")} (commit `{det_data.get("git_commit", "unknown")[:10]}`).  
+> **Integrity & Disclosure Standard**<br>
+> Every metric reported on this page was produced by scripts executed against Swallo v{det_data.get("swallo_version", "0.1.0")} (commit `{det_data.get("git_commit", "unknown")[:10]}`).<br>
 > No numbers are estimated or hardcoded. No prompt-injection detection rates are claimed; only structural defense invariants are tested.
 
 ---
@@ -136,10 +148,10 @@ Tests multi-layer encoding evasion and denial-of-service cap enforcement.
 
 ### 4.1 Ingest & Redaction Throughput
 
-| Payload Size | Median Latency | IQR | Throughput | Rounds / Warmups |
-| :--- | :--- | :--- | :--- | :--- |
-| **1 MB Transcript** | `{perf_benches.get("redaction", {}).get("1MB", {}).get("latency_seconds", {}).get("median", 0.0)}s` | `{perf_benches.get("redaction", {}).get("1MB", {}).get("latency_seconds", {}).get("iqr", 0.0)}s` | **`{perf_benches.get("redaction", {}).get("1MB", {}).get("throughput_mb_s", 0.0)} MB/s`** | 5 / 2 |
-| **5 MB Transcript** | `{perf_benches.get("redaction", {}).get("5MB", {}).get("latency_seconds", {}).get("median", 0.0)}s` | `{perf_benches.get("redaction", {}).get("5MB", {}).get("latency_seconds", {}).get("iqr", 0.0)}s` | **`{perf_benches.get("redaction", {}).get("5MB", {}).get("throughput_mb_s", 0.0)} MB/s`** | 5 / 2 |
+| Payload Size | Median Latency | IQR | Std Dev | Throughput | Rounds / Warmups |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1 MB Transcript** | `{perf_benches.get("redaction", {}).get("1MB", {}).get("latency_seconds", {}).get("median", 0.0)}s` | `{perf_benches.get("redaction", {}).get("1MB", {}).get("latency_seconds", {}).get("iqr", 0.0)}s` | `{perf_benches.get("redaction", {}).get("1MB", {}).get("latency_seconds", {}).get("std_dev", 0.0)}s` | **`{perf_benches.get("redaction", {}).get("1MB", {}).get("throughput_mb_s", 0.0)} MB/s`** | {perf_benches.get("redaction", {}).get("1MB", {}).get("rounds", 20)} / {perf_benches.get("redaction", {}).get("1MB", {}).get("warmups", 5)} |
+| **5 MB Transcript** | `{perf_benches.get("redaction", {}).get("5MB", {}).get("latency_seconds", {}).get("median", 0.0)}s` | `{perf_benches.get("redaction", {}).get("5MB", {}).get("latency_seconds", {}).get("iqr", 0.0)}s` | `{perf_benches.get("redaction", {}).get("5MB", {}).get("latency_seconds", {}).get("std_dev", 0.0)}s` | **`{perf_benches.get("redaction", {}).get("5MB", {}).get("throughput_mb_s", 0.0)} MB/s`** | {perf_benches.get("redaction", {}).get("5MB", {}).get("rounds", 20)} / {perf_benches.get("redaction", {}).get("5MB", {}).get("warmups", 5)} |
 
 ### 4.2 Canonical JSON Serialization & SHA-256 Hashing
 
@@ -148,10 +160,11 @@ Tests multi-layer encoding evasion and denial-of-service cap enforcement.
 | **10 Items** | `{perf_benches.get("canonical_hashing", {}).get("10_items", {}).get("latency_seconds", {}).get("median", 0.0) * 1000:.3f} ms` | `{perf_benches.get("canonical_hashing", {}).get("10_items", {}).get("latency_seconds", {}).get("iqr", 0.0) * 1000:.3f} ms` | `{perf_benches.get("canonical_hashing", {}).get("10_items", {}).get("latency_seconds", {}).get("min", 0.0) * 1000:.3f} ms` / `{perf_benches.get("canonical_hashing", {}).get("10_items", {}).get("latency_seconds", {}).get("max", 0.0) * 1000:.3f} ms` |
 | **100 Items** | `{perf_benches.get("canonical_hashing", {}).get("100_items", {}).get("latency_seconds", {}).get("median", 0.0) * 1000:.3f} ms` | `{perf_benches.get("canonical_hashing", {}).get("100_items", {}).get("latency_seconds", {}).get("iqr", 0.0) * 1000:.3f} ms` | `{perf_benches.get("canonical_hashing", {}).get("100_items", {}).get("latency_seconds", {}).get("min", 0.0) * 1000:.3f} ms` / `{perf_benches.get("canonical_hashing", {}).get("100_items", {}).get("latency_seconds", {}).get("max", 0.0) * 1000:.3f} ms` |
 | **500 Items** | `{perf_benches.get("canonical_hashing", {}).get("500_items", {}).get("latency_seconds", {}).get("median", 0.0) * 1000:.3f} ms` | `{perf_benches.get("canonical_hashing", {}).get("500_items", {}).get("latency_seconds", {}).get("iqr", 0.0) * 1000:.3f} ms` | `{perf_benches.get("canonical_hashing", {}).get("500_items", {}).get("latency_seconds", {}).get("min", 0.0) * 1000:.3f} ms` / `{perf_benches.get("canonical_hashing", {}).get("500_items", {}).get("latency_seconds", {}).get("max", 0.0) * 1000:.3f} ms` |
+| **1000 Items** | `{perf_benches.get("canonical_hashing", {}).get("1000_items", {}).get("latency_seconds", {}).get("median", 0.0) * 1000:.3f} ms` | `{perf_benches.get("canonical_hashing", {}).get("1000_items", {}).get("latency_seconds", {}).get("iqr", 0.0) * 1000:.3f} ms` | `{perf_benches.get("canonical_hashing", {}).get("1000_items", {}).get("latency_seconds", {}).get("min", 0.0) * 1000:.3f} ms` / `{perf_benches.get("canonical_hashing", {}).get("1000_items", {}).get("latency_seconds", {}).get("max", 0.0) * 1000:.3f} ms` |
 
 ### 4.3 SQLite WAL Throughput & MCP Latencies
 
-- **SQLite WAL Write Throughput**: `{perf_benches.get("sqlite_wal", {}).get("single_writer", {}).get("writes_per_sec", 0.0)} writes/sec` (Median: `{perf_benches.get("sqlite_wal", {}).get("single_writer", {}).get("latency_seconds", {}).get("median", 0.0)}s` for 300 writes).
+- **SQLite WAL Write Throughput**: `{perf_benches.get("sqlite_wal", {}).get("single_writer", {}).get("writes_per_sec", 0.0)} writes/sec` (Median: `{perf_benches.get("sqlite_wal", {}).get("single_writer", {}).get("latency_seconds", {}).get("median", 0.0)}s` for {perf_benches.get("sqlite_wal", {}).get("single_writer", {}).get("writes_count", 1000)} writes).
 - **MCP `list_contexts` Latency**: `{perf_benches.get("mcp_latency", {}).get("list_contexts", {}).get("median", 0.0) * 1000:.2f} ms` (IQR: `{perf_benches.get("mcp_latency", {}).get("list_contexts", {}).get("iqr", 0.0) * 1000:.2f} ms`).
 - **MCP `save_context` (Draft) Latency**: `{perf_benches.get("mcp_latency", {}).get("save_context_draft", {}).get("median", 0.0) * 1000:.2f} ms` (IQR: `{perf_benches.get("mcp_latency", {}).get("save_context_draft", {}).get("iqr", 0.0) * 1000:.2f} ms`).
 - **CLI Cold Start (`swallo --help`)**: `{perf_benches.get("cli_cold_start", {}).get("swallo_help", {}).get("median", 0.0) * 1000:.1f} ms`.

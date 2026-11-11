@@ -1,7 +1,7 @@
 # Swallo Benchmark Suite & Performance Reference
 
-> **Integrity & Disclosure Standard**  
-> Every metric reported on this page was produced by scripts executed against Swallo v0.1.0 (commit `450ea0d186`).  
+> **Integrity & Disclosure Standard**<br>
+> Every metric reported on this page was produced by scripts executed against Swallo v0.1.0 (commit `7e445057f6`).<br>
 > No numbers are estimated or hardcoded. No prompt-injection detection rates are claimed; only structural defense invariants are tested.
 
 ---
@@ -36,8 +36,8 @@ Evaluated across synthetic labeled test vectors (AWS keys, GitHub PATs, Slack to
 | Metric | Result | Target / Standard |
 | :--- | :--- | :--- |
 | **High-Confidence Pattern Precision** | `100.0%` | 100.0% (Zero false positives on hard negatives) |
-| **High-Confidence Pattern Recall** | `80.0%` | >= 80.0% |
-| **Pattern $F_1$ Score** | `0.8889` | >= 0.8800 |
+| **High-Confidence Pattern Recall** | `100.0%` | >= 80.0% |
+| **Pattern $F_1$ Score** | `1.0000` | >= 0.8800 |
 | **Pattern False Positive Rate** | `0.0%` | 0.0% |
 | **Entropy Detector False Positive Rate** | `0.0%` | Audited independently from regex |
 
@@ -54,7 +54,7 @@ Tests multi-layer encoding evasion and denial-of-service cap enforcement.
 | **Reversal** | `100.0%` | Candidate verified |
 | **Zero-Width Steganography** | `100.0%` | Binary bit extraction |
 | **Nested Depth 2 & 3** | `100.0%` / `100.0%` | Recursive scan |
-| **Large Payload Bomb (>64 KB)** | Handled (`0.063s`) | Blocked at 64 KB cap |
+| **Large Payload Bomb (>64 KB)** | Handled (`0.031s`) | Blocked at 64 KB cap |
 | **Deep Recursion Bomb (>3 depths)** | Handled (`0.0s`) | Halts safely at depth 3 |
 
 ### 3.3 Boundary Defense & Hostile Archive Matrix
@@ -96,37 +96,38 @@ Tests multi-layer encoding evasion and denial-of-service cap enforcement.
 
 ### 4.1 Ingest & Redaction Throughput
 
-| Payload Size | Median Latency | IQR | Throughput | Rounds / Warmups |
-| :--- | :--- | :--- | :--- | :--- |
-| **1 MB Transcript** | `0.251292s` | `0.005833s` | **`3.98 MB/s`** | 5 / 2 |
-| **5 MB Transcript** | `0.832892s` | `0.014402s` | **`6.0 MB/s`** | 5 / 2 |
+| Payload Size | Median Latency | IQR | Std Dev | Throughput | Rounds / Warmups |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1 MB Transcript** | `0.12116s` | `0.007181s` | `0.005676s` | **`8.25 MB/s`** | 20 / 5 |
+| **5 MB Transcript** | `0.594395s` | `0.01831s` | `0.012331s` | **`8.41 MB/s`** | 20 / 5 |
 
 ### 4.2 Canonical JSON Serialization & SHA-256 Hashing
 
 | Packet Scale | Median Latency | IQR | Min / Max |
 | :--- | :--- | :--- | :--- |
-| **10 Items** | `0.069 ms` | `0.005 ms` | `0.064 ms` / `0.078 ms` |
-| **100 Items** | `0.493 ms` | `0.016 ms` | `0.483 ms` / `0.633 ms` |
-| **500 Items** | `2.459 ms` | `0.141 ms` | `2.370 ms` / `3.204 ms` |
+| **10 Items** | `0.086 ms` | `0.026 ms` | `0.079 ms` / `0.190 ms` |
+| **100 Items** | `0.444 ms` | `0.273 ms` | `0.399 ms` / `1.077 ms` |
+| **500 Items** | `2.064 ms` | `0.231 ms` | `2.012 ms` / `2.658 ms` |
+| **1000 Items** | `4.351 ms` | `0.651 ms` | `4.090 ms` / `14.975 ms` |
 
 ### 4.3 SQLite WAL Throughput & MCP Latencies
 
-- **SQLite WAL Write Throughput**: `887.0 writes/sec` (Median: `0.338237s` for 300 writes).
-- **MCP `list_contexts` Latency**: `3.19 ms` (IQR: `0.91 ms`).
-- **MCP `save_context` (Draft) Latency**: `3.79 ms` (IQR: `0.59 ms`).
-- **CLI Cold Start (`swallo --help`)**: `211.9 ms`.
+- **SQLite WAL Write Throughput**: `973.4 writes/sec` (Median: `1.027276s` for 1000 writes).
+- **MCP `list_contexts` Latency**: `2.69 ms` (IQR: `0.42 ms`).
+- **MCP `save_context` (Draft) Latency**: `14.20 ms` (IQR: `0.83 ms`).
+- **CLI Cold Start (`swallo --help`)**: `181.0 ms`.
 
 ---
 
 ## 5. Memory Profiling & Token Efficiency
 
 - **Tracemalloc vs RSS Cross-Check**:
-  - 1 MB Ingest: Tracemalloc peak: `3355 bytes`, Process RSS: `39.95 MB`.
-  - 5 MB Ingest: Tracemalloc peak: `3334 bytes`, Process RSS: `43.96 MB`.
+  - 1 MB Ingest: Tracemalloc peak: `3754 bytes`, Process RSS: `40.86 MB`.
+  - 5 MB Ingest: Tracemalloc peak: `3127 bytes`, Process RSS: `45.42 MB`.
 - **Token Reduction Efficiency**:
-  - Raw Transcript Tokens (50 turns): `2600`
-  - Compact Context Packet Tokens: `2538`
-  - Tokens Saved: `62` (2.38% reduction using `cl100k_base`).
+  - Raw Transcript Tokens (50 turns): `1175`
+  - Compact Context Packet Tokens: `785`
+  - Tokens Saved: `390` (33.19% reduction using `cl100k_base`).
 
 ---
 

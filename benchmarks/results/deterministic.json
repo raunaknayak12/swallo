@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "swallo_version": "0.1.0",
-  "git_commit": "450ea0d1869a523e090db433e62cbc972a07f3a3",
+  "git_commit": "7e445057f61284414da19dc599a3eb0652132bff",
   "environment": {
     "os": "Windows 11",
     "architecture": "64bit",
@@ -10,24 +10,27 @@
   },
   "metrics": {
     "corpus_redaction": {
-      "pattern_recall": 0.8,
+      "pattern_recall": 1.0,
       "pattern_precision": 1.0,
-      "pattern_f1": 0.8889,
+      "pattern_f1": 1.0,
       "pattern_false_positive_rate": 0.0,
       "per_type_accuracy": {
         "aws_access_key": 1.0,
         "github_token": 1.0,
+        "openai_api_key": 1.0,
+        "anthropic_api_key": 1.0,
         "slack_token": 1.0,
         "private_key": 1.0,
-        "connection_password": 0.0,
+        "connection_password": 1.0,
         "bearer_token": 1.0,
-        "high_entropy_secret": 0.0
+        "high_entropy_secret": 1.0
       },
       "entropy_detector_false_positive_rate": 0.0,
       "entropy_detector_fp_samples_count": 0,
       "entropy_detector_fp_samples": [],
-      "total_positive_samples": 15,
-      "total_negative_samples": 11
+      "total_positive_samples": 98,
+      "total_negative_samples": 66,
+      "corpus_total_samples": 164
     },
     "decoded_variants": {
       "base64_recall": 1.0,
@@ -39,7 +42,7 @@
       "nested_depth_2_recall": 1.0,
       "nested_depth_3_recall": 1.0,
       "size_cap_exceeded_handled": true,
-      "size_cap_duration_s": 0.063,
+      "size_cap_duration_s": 0.031,
       "depth_cap_exceeded_handled": true,
       "depth_cap_duration_s": 0.0
     },
@@ -97,7 +100,7 @@
   },
   "deterministic_summary": {
     "all_defenses_passed": true,
-    "redaction_f1": 0.8889,
+    "redaction_f1": 1.0,
     "variant_recall_base64": 1.0,
     "variant_recall_rot13": 1.0,
     "variant_recall_reversal": 1.0,
