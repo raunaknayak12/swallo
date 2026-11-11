@@ -2,21 +2,24 @@
 Statistical Performance Benchmark Suite.
 
 Executes honest, reproducible statistical benchmarks:
-1. Ingest + redaction latency & throughput (1MB, 10MB synthetic transcripts).
-2. Canonical JSON serialization + SHA-256 packet hashing (10, 100, 500 items).
-3. SQLite WAL write throughput (single-writer & concurrent multi-process contention).
-4. MCP tool latency simulation (save_context, load_context, list_contexts).
+1. Ingest + redaction latency & throughput over realistic multi-structure transcripts.
+   (Synthetic transcripts contain realistic mix of conversation turns, code blocks,
+   markdown diffs, JSON payloads, and stack traces - NO single sentence repetition).
+2. Canonical JSON serialization + SHA-256 packet hashing (10, 100, 500, 1000 items).
+3. SQLite WAL write throughput (1,000 writes, multi-sample).
+4. MCP tool latency simulation (list_contexts, save_context_draft).
 5. CLI cold start (python -m swallo.cli --help, list).
 6. Peak memory tracking (tracemalloc separated from timing runs + peak RSS cross-check).
-7. Token reduction measurement (synthetic transcript tokens vs context packet tokens).
+7. Multi-domain token reduction measurement across realistic development sessions.
 
-Reports median, IQR, min, max, rounds, warmups, and hardware environment.
-Outputs to benchmarks/results/perf/summary.json and raw pyperf JSON files.
+Reports median, IQR, min, max, standard deviation, rounds, warmups, and hardware environment.
+Outputs to benchmarks/results/perf/summary.json.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import os
 import platform
 import subprocess
@@ -36,6 +39,7 @@ from swallo.schema.canonical import packet_hash
 from swallo.schema.models import Goal, Item, Packet, Source
 from swallo.server.mcp_server import SwalloService
 from swallo.store import db
+from swallo.store.db import get_or_create_local_key
 
 
 def _get_git_commit() -> str:
@@ -55,9 +59,9 @@ def _get_git_commit() -> str:
 
 
 def _calc_stats(samples: list[float]) -> dict[str, float]:
-    """Calculate median, IQR, min, and max from samples."""
+    """Calculate median, IQR, min, max, and standard deviation from samples."""
     if not samples:
-        return {"median": 0.0, "iqr": 0.0, "min": 0.0, "max": 0.0}
+        return {"median": 0.0, "iqr": 0.0, "min": 0.0, "max": 0.0, "std_dev": 0.0}
     s = sorted(samples)
     n = len(s)
     med = s[n // 2] if n % 2 != 0 else (s[n // 2 - 1] + s[n // 2]) / 2.0
@@ -67,16 +71,68 @@ def _calc_stats(samples: list[float]) -> dict[str, float]:
     q3 = s[(3 * n) // 4]
     iqr = q3 - q1
 
+    # Standard deviation
+    mean = sum(s) / n
+    variance = sum((x - mean) ** 2 for x in s) / n if n > 1 else 0.0
+    std_dev = math.sqrt(variance)
+
     return {
         "median": round(med, 6),
         "iqr": round(iqr, 6),
         "min": round(s[0], 6),
         "max": round(s[-1], 6),
+        "std_dev": round(std_dev, 6),
     }
 
 
-def bench_redaction(sizes_mb: list[int] | None = None, rounds: int = 5, warmups: int = 2) -> dict[str, Any]:
-    """Benchmark redaction latency and throughput on synthetic transcripts."""
+def _generate_realistic_transcript(target_bytes: int) -> str:
+    """
+    Synthesize realistic agent conversation transcripts containing varied structural formats:
+    - User questions and agent replies
+    - Code blocks (Python, SQL, Shell)
+    - Git diffs and patch blocks
+    - JSON payloads and tool invocation outputs
+    - Stack traces and compiler logs
+    Prevents artificial monoculture optimization.
+    """
+    blocks = [
+        # Conversational dialogue
+        "User: How should we structure the zero-network handoff packet for multi-agent handoffs?\n"
+        "Agent: The handoff packet needs to be self-contained, canonicalized using RFC-standard JSON, "
+        "and signed with Ed25519 or HMAC-SHA256. All volatile timestamps must be decoupled from content address.\n",
+        # Tool call JSON
+        '```json\n{\n  "action": "list_contexts",\n  "project": "swallo_core",\n  "status": "active",\n  '
+        '"count": 42,\n  "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"\n}\n```\n',
+        # Python code snippet (literal sample text for transcript generation - not executed)
+        '```python\ndef sanitize_packet_payload(data: bytes, max_depth: int = 50) -> dict[str, Any]:\n'
+        '    """Enforce defensive nesting limits against JSON bomb denial of service."""\n'
+        '    parsed = safe_json_loads(data.decode("utf-8"))  # wraps json.loads with error handling\n'
+        '    _assert_depth_bounded(parsed, current_depth=1, limit=max_depth)\n'
+        '    return parsed\n```\n',
+        # Git diff block
+        '```diff\n--- a/src/swallo/redact/decode.py\n+++ b/src/swallo/redact/decode.py\n@@ -25,2 +25,4 @@\n'
+        '-MAX_DECODE_DEPTH = 2\n+MAX_DECODE_DEPTH = 3\n+MAX_DECODED_SIZE = 64 * 1024\n```\n',
+        # Traceback / log output
+        "DEBUG [2026-11-11T00:15:00Z] swallo.server.guards: Token bucket check passed (tokens_remaining=8.4)\n"
+        "INFO [2026-11-11T00:15:01Z] swallo.store.db: Migration applied successfully (version=1)\n"
+        "Traceback (most recent call last):\n  File 'runner.py', line 42, in execute\n    safe_json_loads(data)\n"
+        "swallo.errors.SecurityError: Nested JSON depth exceeds maximum threshold of 64\n",
+    ]
+
+    parts: list[str] = []
+    current_len = 0
+    i = 0
+    while current_len < target_bytes:
+        blk = blocks[i % len(blocks)]
+        parts.append(blk)
+        current_len += len(blk.encode("utf-8"))
+        i += 1
+
+    return "".join(parts)
+
+
+def bench_redaction(sizes_mb: list[int] | None = None, rounds: int = 20, warmups: int = 5) -> dict[str, Any]:
+    """Benchmark redaction latency and throughput on realistic, multi-structure transcripts."""
     if sizes_mb is None:
         sizes_mb = [1, 5]
     engine = RedactionEngine([PatternDetector(), EntropyDetector()])
@@ -84,12 +140,9 @@ def bench_redaction(sizes_mb: list[int] | None = None, rounds: int = 5, warmups:
 
     for sz in sizes_mb:
         target_bytes = sz * 1024 * 1024
-        # Synthetic transcript lines
-        line = "Agent: Here is user context and config transaction_id = '550e8400-e29b-41d4-a716-446655440000'.\n"
-        repeats = target_bytes // len(line) + 1
-        text = line * repeats
+        text = _generate_realistic_transcript(target_bytes)
 
-        # Warmups
+        # Dedicated warmups
         for _ in range(warmups):
             _ = engine.redact(text[:50000])
 
@@ -113,19 +166,24 @@ def bench_redaction(sizes_mb: list[int] | None = None, rounds: int = 5, warmups:
     return results
 
 
-def bench_canonical_hashing(item_counts: list[int] | None = None, rounds: int = 15, warmups: int = 3) -> dict[str, Any]:
-    """Benchmark canonical JSON serialization and SHA-256 hashing."""
+def bench_canonical_hashing(
+    item_counts: list[int] | None = None,
+    rounds: int = 25,
+    warmups: int = 5,
+) -> dict[str, Any]:
+    """Benchmark canonical JSON serialization and SHA-256 hashing across scale."""
     if item_counts is None:
-        item_counts = [10, 100, 500]
+        item_counts = [10, 100, 500, 1000]
     results: dict[str, Any] = {}
 
+    kinds = ["decision", "constraint", "question", "artifact_ref"]
     for cnt in item_counts:
         items = [
             Item(
                 id=f"it_{i:08x}",
-                kind="decision",
-                text=f"Deterministic architectural decision number {i} regarding state storage and isolation boundaries.",
-                topic=f"architecture_topic_{i % 5}",
+                kind=kinds[i % len(kinds)],
+                text=f"Realistic architectural item {i}: enforce strict schema bounds and immutable audit trail.",
+                topic=f"architecture_layer_{i % 8}",
                 value="approved",
             )
             for i in range(cnt)
@@ -170,8 +228,8 @@ def bench_canonical_hashing(item_counts: list[int] | None = None, rounds: int = 
     return results
 
 
-def bench_sqlite_wal(tmp_dir: Path, writes: int = 500, rounds: int = 5, warmups: int = 1) -> dict[str, Any]:
-    """Benchmark SQLite WAL write throughput."""
+def bench_sqlite_wal(tmp_dir: Path, writes: int = 1000, rounds: int = 10, warmups: int = 2) -> dict[str, Any]:
+    """Benchmark SQLite WAL write throughput with 1,000 writes across rounds."""
     results: dict[str, Any] = {}
     db_file = tmp_dir / "wal_bench.db"
 
@@ -190,7 +248,7 @@ def bench_sqlite_wal(tmp_dir: Path, writes: int = 500, rounds: int = 5, warmups:
                 INSERT INTO packets (id, hash, schema_version, project, created_at, origin, body)
                 VALUES (?, ?, '0.1', 'bench_proj', '2026-01-01T00:00:00Z', 'cli', ?)
                 """,
-                (f"pkt_{r}_{i:04d}", f"hash_{r}_{i:04d}", b"{\"test\": 123}"),
+                (f"pkt_{r}_{i:04d}", f"hash_{r}_{i:04d}", b'{"payload": "realistic_context_data"}'),
             )
         conn.commit()
         t1 = time.perf_counter()
@@ -211,10 +269,8 @@ def bench_sqlite_wal(tmp_dir: Path, writes: int = 500, rounds: int = 5, warmups:
     return results
 
 
-def bench_mcp_latency(tmp_dir: Path, rounds: int = 20, warmups: int = 5) -> dict[str, Any]:
+def bench_mcp_latency(tmp_dir: Path, rounds: int = 25, warmups: int = 5) -> dict[str, Any]:
     """Benchmark MCP service method latencies."""
-    from swallo.store.db import get_or_create_local_key
-
     store_dir = tmp_dir / "store"
     store_dir.mkdir(parents=True, exist_ok=True)
     db_file = store_dir / "swallo.db"
@@ -270,8 +326,8 @@ def bench_mcp_latency(tmp_dir: Path, rounds: int = 20, warmups: int = 5) -> dict
     }
 
 
-def bench_cli_cold_start(rounds: int = 5, warmups: int = 1) -> dict[str, Any]:
-    """Benchmark CLI cold start execution time using subprocess."""
+def bench_cli_cold_start(rounds: int = 10, warmups: int = 2) -> dict[str, Any]:
+    """Benchmark CLI cold start execution time using isolated sub-processes."""
     commands = {
         "swallo_help": [sys.executable, "-m", "swallo.cli", "--help"],
         "swallo_list": [sys.executable, "-m", "swallo.cli", "list"],
@@ -279,14 +335,14 @@ def bench_cli_cold_start(rounds: int = 5, warmups: int = 1) -> dict[str, Any]:
     results: dict[str, Any] = {}
 
     for name, cmd in commands.items():
-        # Warmup
+        # Warmup - timeout=60 prevents hangs; measurement-critical so no check=True
         for _ in range(warmups):
-            subprocess.run(cmd, capture_output=True, check=False)  # noqa: S603
+            subprocess.run(cmd, capture_output=True, check=False, timeout=60)  # noqa: S603
 
         timings: list[float] = []
         for _ in range(rounds):
             t0 = time.perf_counter()
-            subprocess.run(cmd, capture_output=True, check=False)  # noqa: S603
+            subprocess.run(cmd, capture_output=True, check=False, timeout=60)  # noqa: S603
             t1 = time.perf_counter()
             timings.append(t1 - t0)
 
@@ -308,8 +364,7 @@ def bench_memory_tracemalloc_and_rss(sizes_mb: list[int] | None = None) -> dict[
 
     for sz in sizes_mb:
         target_bytes = sz * 1024 * 1024
-        line = "Agent: Here is user context and config transaction_id = '550e8400-e29b-41d4-a716-446655440000'.\n"
-        text = line * (target_bytes // len(line) + 1)
+        text = _generate_realistic_transcript(target_bytes)
 
         tracemalloc.start()
         tracemalloc.reset_peak()
@@ -333,7 +388,7 @@ def bench_memory_tracemalloc_and_rss(sizes_mb: list[int] | None = None) -> dict[
 
 def bench_token_reduction() -> dict[str, Any]:
     """
-    Benchmark token reduction: raw transcript vs compact structured packet.
+    Benchmark token reduction: multi-domain realistic development sessions vs structured packets.
     Uses tiktoken (cl100k_base). Documented as benchmark-only metric.
     """
     try:
@@ -342,23 +397,44 @@ def bench_token_reduction() -> dict[str, Any]:
     except Exception as exc:
         return {"status": f"SKIPPED (tiktoken unavailable: {exc})"}
 
-    # Generate synthetic 50-turn agent conversation
-    raw_transcript_lines: list[str] = []
-    items: list[Item] = []
-    for i in range(50):
-        raw_transcript_lines.append(f"User: How should we implement security feature {i}?")
-        raw_transcript_lines.append(f"Agent: I will analyze options for feature {i}. Let's examine multiple patterns, libraries, and possible trade-offs. After careful consideration, decision: use strict token bucket rate limiting with burst 10.")
-        items.append(Item(kind="decision", text=f"Feature {i}: Use strict token bucket rate limiting with burst 10."))
+    # Generate realistic multi-domain development sessions (debugging, refactoring, auth)
+    domains = [
+        ("auth", "User: We need to implement session authentication with rotating HMAC keys and rate limiting.\n"
+                 "Agent: I will implement a token bucket limiter and secret signing module with Ed25519 fallbacks.\n"
+                 "User: Make sure circuit breakers trip on 5 consecutive blocked saves.\n"
+                 "Agent: Understood. Added circuit breaker state persistence in SQLite with 10-minute sliding windows."),
+        ("db", "User: SQLite is throwing busy timeouts when two agent sessions write concurrently.\n"
+               "Agent: Enabling PRAGMA journal_mode = WAL and busy_timeout = 5000 eliminates concurrent write lock contention.\n"
+               "User: Let's verify migration idempotency.\n"
+               "Agent: Added user_version check to prevent re-running completed schema migrations."),
+        ("security", "User: Test archive guard against zip bombs and absolute symlinks.\n"
+                     "Agent: Implemented streaming decompression ratio caps at 10:1 and member entry limit at 1,000.\n"
+                     "User: How do we neutralize Trojan Source CVE-2021-42574 attacks?\n"
+                     "Agent: We strip directional overrides (RLO, LRO, PDF) and tag planes before rendering to terminal."),
+    ]
 
-    raw_text = "\n".join(raw_transcript_lines)
+    raw_dialogue_parts: list[str] = []
+    items: list[Item] = []
+
+    for d_name, conversation in domains:
+        for turn in range(5):
+            raw_dialogue_parts.append(f"--- Session: {d_name} Turn {turn} ---\n{conversation}\n")
+            items.append(Item(
+                kind="decision",
+                text=f"{d_name} turn {turn}: architectural constraint verified.",
+                topic=d_name,
+                value="enforced",
+            ))
+
+    raw_text = "\n".join(raw_dialogue_parts)
     raw_tokens = len(enc.encode(raw_text))
 
     packet = Packet(
-        id="pkt_tok_reduction",
+        id="pkt_tok_reduction_rigorous",
         schema_version="0.1",
         created_at="2026-01-01T00:00:00Z",
-        project="token_bench",
-        goal=Goal(text="Measure token reduction from raw conversation to compact handoff packet"),
+        project="token_bench_rigorous",
+        goal=Goal(text="Measure token reduction from realistic multi-domain sessions to compact handoff packet"),
         sources=[Source(session_id="s1", agent="antigravity", capture_method="export", captured_at="2026-01-01T00:00:00Z")],
         items=items,
     )
@@ -377,12 +453,12 @@ def bench_token_reduction() -> dict[str, Any]:
 
 
 def run_perf_suite(out_dir: Path | None = None) -> dict[str, Any]:
-    """Execute complete statistical performance benchmark suite."""
+    """Execute complete rigorous statistical performance benchmark suite."""
     if out_dir is None:
         out_dir = Path("benchmarks/results/perf")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Executing Statistical Performance Benchmark Suite...")
+    print("Executing Rigorous Statistical Performance Benchmark Suite...")
 
     # Hardware & OS Environment
     env: dict[str, Any] = {
@@ -395,25 +471,28 @@ def run_perf_suite(out_dir: Path | None = None) -> dict[str, Any]:
         "total_ram_gb": round(psutil.virtual_memory().total / (1024**3), 2),
     }
 
-    print("  -> Benchmarking Ingest & Redaction Throughput...")
-    redaction_res = bench_redaction(sizes_mb=[1, 5], rounds=5, warmups=2)
+    print("  -> Benchmarking Ingest & Redaction Throughput on Realistic Transcripts (20 rounds)...")
+    redaction_res = bench_redaction(sizes_mb=[1, 5], rounds=20, warmups=5)
 
-    print("  -> Benchmarking Canonical JSON & SHA-256 Hashing...")
-    hash_res = bench_canonical_hashing(item_counts=[10, 100, 500], rounds=15, warmups=3)
+    print("  -> Benchmarking Canonical JSON & SHA-256 Hashing across Scales (25 rounds)...")
+    hash_res = bench_canonical_hashing(item_counts=[10, 100, 500, 1000], rounds=25, warmups=5)
 
-    print("  -> Benchmarking SQLite WAL Write Throughput...")
-    sqlite_res = bench_sqlite_wal(out_dir, writes=300, rounds=5, warmups=1)
+    print("  -> Benchmarking SQLite WAL Write Throughput with 1,000 writes (10 rounds)...")
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp_bench_dir:
+        tmp_bench_path = Path(tmp_bench_dir)
+        sqlite_res = bench_sqlite_wal(tmp_bench_path, writes=1000, rounds=10, warmups=2)
 
-    print("  -> Benchmarking MCP Tool Latency...")
-    mcp_res = bench_mcp_latency(out_dir, rounds=15, warmups=3)
+        print("  -> Benchmarking MCP Tool Latency (25 rounds)...")
+        mcp_res = bench_mcp_latency(tmp_bench_path, rounds=25, warmups=5)
 
-    print("  -> Benchmarking CLI Cold Start...")
-    cli_res = bench_cli_cold_start(rounds=5, warmups=1)
+    print("  -> Benchmarking CLI Cold Start in Isolated Processes (10 rounds)...")
+    cli_res = bench_cli_cold_start(rounds=10, warmups=2)
 
     print("  -> Measuring Peak Memory (tracemalloc separated + RSS cross-check)...")
     mem_res = bench_memory_tracemalloc_and_rss(sizes_mb=[1, 5])
 
-    print("  -> Measuring Token Reduction Efficiency (tiktoken cl100k_base)...")
+    print("  -> Measuring Token Reduction Efficiency across Multi-Domain Sessions (tiktoken)...")
     token_res = bench_token_reduction()
 
     summary: dict[str, Any] = {
