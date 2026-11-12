@@ -10,7 +10,7 @@
 
 Portable, reviewable handoff between any AI chat agent and any IDE with zero-network runtime isolation.
 
-`swallo` is a local-first, zero-network context handoff and security tool designed to transport structured conversational and debugging context between AI chat agents (ChatGPT, Claude, Gemini) and agentic IDE environments (Claude Code, Cursor, Antigravity).
+`swallo` is a local-first, zero-network Python package and security CLI tool designed to transport structured conversational and debugging context between AI chat agents (ChatGPT, Claude, Gemini) and agentic IDE environments (Claude Code, Cursor, Antigravity).
 
 Context travels as an integrity-checked, schema-validated JSON "context packet" with cryptographic content addressing, deterministic canonicalization, explicit redaction bounds, Trojan Source sanitization, and zero network calls in the core runtime.
 
@@ -49,10 +49,10 @@ flowchart TD
 
 ## Installation
 
-Requires Python >= 3.11.
+`swallo` is available on PyPI ([pypi.org/project/swallo/](https://pypi.org/project/swallo/)). Requires Python >= 3.11.
 
 ```bash
-# Core package (zero third-party runtime dependencies beyond Pydantic)
+# Install swallo from PyPI (zero third-party runtime dependencies beyond Pydantic)
 pip install swallo
 
 # With optional extras:

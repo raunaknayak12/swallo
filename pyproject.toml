@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "swallo"
-version = "0.1.1"
+version = "0.1.2"
 description = "Portable, reviewable handoff between any chat agent and any IDE"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
@@ -12,6 +12,18 @@ authors = [
     { name = "Raunak Nayak", email = "raunakpython11@gmail.com" }
 ]
 requires-python = ">=3.11"
+keywords = [
+    "swallo",
+    "python",
+    "pypi",
+    "agent-handoff",
+    "ai-agents",
+    "context-packet",
+    "mcp",
+    "developer-tools",
+    "ide",
+    "security"
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -30,6 +42,14 @@ classifiers = [
 dependencies = [
     "pydantic>=2.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/raunaknayak12/swallo"
+Documentation = "https://github.com/raunaknayak12/swallo#readme"
+Repository = "https://github.com/raunaknayak12/swallo"
+"Issue Tracker" = "https://github.com/raunaknayak12/swallo/issues"
+Changelog = "https://github.com/raunaknayak12/swallo/blob/main/CHANGELOG.md"
+PyPI = "https://pypi.org/project/swallo/"
 
 [project.optional-dependencies]
 mcp = [

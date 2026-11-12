@@ -18,6 +18,10 @@ ENV/
 # Project local storage
 .swallo/
 
+# External agent context (local prompt context for external LLMs; do not push)
+SWALLO_AGENT_CONTEXT.md
+*AGENT_CONTEXT*.md
+
 # In-repo MCP configs and IDE configs (prefer user-level global config)
 .cursor/
 .cursor/mcp.json
