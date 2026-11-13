@@ -112,8 +112,8 @@ The core runtime strictly requires only `pydantic>=2.0.0` and the Python standar
 | `swallo resolve` | `swallo resolve <pkt> [--accept OURS\|THEIRS]` | Resolve merge conflicts in a packet. |
 | `swallo show` | `swallo show <pkt_id> [--raw] [--json]` | Inspect packet details, decisions, constraints, and provenance. |
 | `swallo edit` | `swallo edit <pkt_id>` | Interactively edit packet fields with schema re-validation. |
-| `swallo approve` | `swallo approve <pkt_id> --target T` | Record cryptographic approval in local ledger (TTY required). |
-| `swallo send` | `swallo send <pkt_id> --target T` | Materialize two-file delivery stub and handoff data file for IDE. |
+| `swallo approve` | `swallo approve <pkt_id> [--target claude-code\|antigravity\|chat]` | Record cryptographic approval in local ledger (TTY required). |
+| `swallo send` | `swallo send <pkt_id> [--to claude-code\|chat] [--format markdown]` | Materialize two-file delivery stub and handoff data file for IDE. |
 | `swallo load` | `swallo load <pkt_id>` | Load packet into memory or inspect delivered state. |
 | `swallo diff` | `swallo diff <pkt_a> <pkt_b>` | Show structural and field-level diff between two packets. |
 | `swallo list` / `status` | `swallo list [--limit N]` | List packets, drafts, approval status, and timestamps. |
@@ -177,7 +177,19 @@ require_tty = true         # Invariant: agents cannot approve context
 
 ## MCP Integration
 
-`swallo` provides standard Model Context Protocol (MCP) support over `stdio`. The server exposes `swallo_save_draft`, `swallo_load_packet`, and `swallo_query_store`. In accordance with security invariant ADR-007, **no approve tool is exposed via MCP**.
+`swallo` provides standard Model Context Protocol (MCP) support over `stdio` via `python -m swallo mcp`. The server exposes:
+- `save_context`: Store an unapproved draft packet (tier T1).
+- `load_context` (and `get_context` alias): Retrieve approved context fenced against prompt injection.
+- `verify_context`: Read-only verification of hash integrity, event-log HMAC chain, and ledger status.
+- `list_contexts`: List summary metadata for stored packets.
+- `merge_contexts`: Merge 1..N packets with conflict tracking.
+- `diff`: Compare packets item-by-item.
+
+In accordance with security invariant ADR-007, **no approve tool is exposed via MCP**. Human review and approval strictly requires the interactive CLI terminal.
+
+Environment variables:
+- `SWALLO_HOME` (primary): Set the local storage directory (defaults to `%LOCALAPPDATA%\swallo` on Windows, `~/.local/share/swallo` on Linux).
+- `SWALLO_STORAGE_DIR`: Supported alias for `SWALLO_HOME`.
 
 ### Claude Code
 Add to your project's `.mcp.json` or user-level config:
