@@ -119,9 +119,41 @@ def get_store_dir(override: Path | str | None = None) -> Path:
     if override is not None:
         return Path(override).expanduser().resolve()
 
+    # Scan for unknown SWALLO_* environment variables and emit one-line hint
+    known_swallo_env = {
+        "SWALLO_HOME",
+        "SWALLO_STORAGE_DIR",
+        "SWALLO_KEY",
+        "SWALLO_DEBUG",
+        "SWALLO_TEST_STUB",
+    }
+    for env_k in os.environ:
+        if env_k.startswith("SWALLO_") and env_k not in known_swallo_env:
+            print(
+                f"Hint: Unrecognized environment variable '{env_k}'. "
+                "Did you mean SWALLO_HOME or SWALLO_STORAGE_DIR?",
+                file=sys.stderr,
+            )
+
     swallo_home = os.environ.get("SWALLO_HOME")
+    swallo_storage_dir = os.environ.get("SWALLO_STORAGE_DIR")
+
+    if swallo_home and swallo_storage_dir:
+        h_path = Path(swallo_home).expanduser().resolve()
+        s_path = Path(swallo_storage_dir).expanduser().resolve()
+        if h_path != s_path:
+            print(
+                "Warning: Both SWALLO_HOME and SWALLO_STORAGE_DIR are set and differ. "
+                "Using SWALLO_HOME.",
+                file=sys.stderr,
+            )
+        return h_path
+
     if swallo_home:
         return Path(swallo_home).expanduser().resolve()
+
+    if swallo_storage_dir:
+        return Path(swallo_storage_dir).expanduser().resolve()
 
     if sys.platform == "win32":
         local_app_data = os.environ.get("LOCALAPPDATA")
