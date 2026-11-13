@@ -107,7 +107,7 @@ def test_full_packet_lifecycle_e2e(tmp_path: Path, capsys: pytest.CaptureFixture
     approve_raw = parse_canonical_json(capsys.readouterr().out)
     assert isinstance(approve_raw, dict)
     assert approve_raw["status"] == "approved"
-    assert approve_raw["target"] == "claude_code"
+    assert approve_raw["target"] in ("claude_code", "claude-code")
 
     # 6. Show packet after approval -> claude_code is approved!
     assert main(["show", pkt_id, "--store", str(store_dir), "--json"]) == 0

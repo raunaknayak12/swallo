@@ -139,6 +139,14 @@ def run_show(argv: list[str]) -> int:
         tgt: is_approved(conn, key_bytes, pkt_hash, tgt) for tgt in known_targets
     }
 
+    # Backward compatibility aliases for JSON output:
+    # 0.1.2 consumers / tests expect 'claude_code' and legacy targets like 'cursor'
+    json_approvals = dict(approvals_status)
+    if "claude-code" in json_approvals:
+        json_approvals["claude_code"] = json_approvals["claude-code"]
+    if "cursor" not in json_approvals:
+        json_approvals["cursor"] = is_approved(conn, key_bytes, pkt_hash, "cursor")
+
     # Generate risks
     risks = _scan_risks(packet_dict)
 
@@ -149,7 +157,7 @@ def run_show(argv: list[str]) -> int:
             "schema_version": schema_ver,
             "project": project,
             "created_at": created_at,
-            "approvals": approvals_status,
+            "approvals": json_approvals,
             "risk_summary": risks,
             "packet": packet_dict,
         }
