@@ -17,6 +17,7 @@ import json
 import sys
 from pathlib import Path
 
+from swallo.adapters.registry import list_supported_targets, normalize_target
 from swallo.config import get_store_dir, load_config
 from swallo.errors import UsageError
 from swallo.repo.gitstate import get_repo_root
@@ -37,8 +38,8 @@ def run_approve(argv: list[str]) -> int:
     parser.add_argument(
         "--target",
         "-t",
-        default="claude_code",
-        help="Target IDE or agent adapter (default: claude_code).",
+        default="claude-code",
+        help="Target IDE or agent adapter (default: claude-code).",
     )
     parser.add_argument(
         "--force",
@@ -65,6 +66,14 @@ def run_approve(argv: list[str]) -> int:
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON.")
 
     args = parser.parse_args(argv)
+
+    args.target = normalize_target(args.target)
+    supported_targets = list_supported_targets()
+    if args.target not in supported_targets:
+        supported_str = ", ".join(supported_targets)
+        raise UsageError(
+            f"Unsupported delivery target '{args.target}'. Supported targets: {supported_str}"
+        )
 
     store_dir = (args.store or get_store_dir()).resolve()
     db_path = store_dir / "swallo.db"

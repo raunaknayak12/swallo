@@ -34,7 +34,11 @@ _ALIASES: dict[str, str] = {
 def normalize_target(target: str) -> str:
     """Normalize a target name string."""
     key = target.strip().lower()
-    return _ALIASES.get(key, key)
+    canonical_alias = _ALIASES.get(key)
+    if canonical_alias is not None:
+        return canonical_alias
+    # Universally convert underscores to hyphens for target naming
+    return key.replace("_", "-")
 
 
 def list_supported_targets() -> list[str]:

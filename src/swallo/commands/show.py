@@ -18,6 +18,7 @@ import json
 import re
 from pathlib import Path
 
+from swallo.adapters.registry import list_supported_targets
 from swallo.config import get_store_dir
 from swallo.errors import UsageError
 from swallo.redact.decode import OpaqueBlobDetector
@@ -133,7 +134,7 @@ def run_show(argv: list[str]) -> int:
     packet_dict = parsed
 
     # Approvals check
-    known_targets = ["claude_code", "cursor", "antigravity"]
+    known_targets = list_supported_targets()
     approvals_status = {
         tgt: is_approved(conn, key_bytes, pkt_hash, tgt) for tgt in known_targets
     }
