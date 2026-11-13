@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from swallo.adapters.chat import ChatAdapter
-from swallo.adapters.registry import get_adapter
+from swallo.adapters.registry import get_adapter, list_supported_targets
 from swallo.config import Config, get_store_dir, load_config
 from swallo.errors import (
     IntegrityError,
@@ -55,6 +55,7 @@ from swallo.server.guards import (
 )
 from swallo.store.db import get_connection, get_or_create_local_key
 from swallo.store.eventlog import append as log_event
+from swallo.store.eventlog import verify as verify_eventlog
 from swallo.store.ledger import is_approved
 from swallo.store.objects import ObjectStore
 
@@ -499,6 +500,83 @@ class SwalloService:
         finally:
             conn.close()
 
+    def get_context(
+        self,
+        project: str,
+        packet_id: str = "latest",
+        target: str = "claude_code",
+        session_id: str = "default",
+    ) -> dict[str, Any]:
+        """Low-risk alias for load_context matching documented MCP tools."""
+        return self.load_context(
+            project=project,
+            packet_id=packet_id,
+            target=target,
+            session_id=session_id,
+        )
+
+    def verify_context(self, project: str, packet_id: str) -> dict[str, Any]:
+        """
+        Read-only verification tool: recompute hash, verify event chain, check ledger approvals.
+        Returns a structured report. Never returns plaintext secrets or content body.
+        """
+        conn = get_connection(self.db_path)
+        try:
+            proj_name, _ = verify_project_registered(conn, project)
+            cursor = conn.cursor()
+            try:
+                cursor.execute(
+                    """
+                    SELECT id, hash, body
+                    FROM packets
+                    WHERE (id = ? OR hash = ?) AND project = ?
+                    """,
+                    (packet_id, packet_id, proj_name),
+                )
+                row = cursor.fetchone()
+            finally:
+                cursor.close()
+
+            if not row:
+                raise UsageError(f"Packet '{packet_id}' not found in project '{proj_name}'.")
+
+            pkt_id, pkt_hash, body_raw = str(row[0]), str(row[1]), row[2]
+
+            # Recompute content hash from stored body
+            hash_verified = False
+            computed_h = None
+            try:
+                body_dict = parse_canonical_json(body_raw)
+                if isinstance(body_dict, dict):
+                    computed_h = packet_hash(body_dict)
+                    hash_verified = (computed_h == pkt_hash)
+            except Exception:
+                hash_verified = False
+
+            # Verify eventlog HMAC chain
+            event_errors = verify_eventlog(conn, self.key_bytes)
+            event_chain_ok = len(event_errors) == 0
+
+            # Check approval status across supported targets
+            supported_targets = list_supported_targets()
+            approvals = {
+                tgt: is_approved(conn, self.key_bytes, pkt_hash, tgt)
+                for tgt in supported_targets
+            }
+
+            return {
+                "packet_id": pkt_id,
+                "project": proj_name,
+                "stored_hash": pkt_hash,
+                "computed_hash": computed_h,
+                "hash_verified": hash_verified,
+                "event_chain_ok": event_chain_ok,
+                "event_errors": event_errors,
+                "approvals": approvals,
+            }
+        finally:
+            conn.close()
+
     def list_contexts(self, project: str, state: str = "all") -> list[dict[str, Any]]:
         """List summary metadata for packets in project (never returns content)."""
         conn = get_connection(self.db_path)
@@ -584,6 +662,31 @@ def create_mcp_server(service: SwalloService | None = None) -> object:
             target=target,
             session_id=session_id,
         )
+        return json.dumps(res, indent=2)
+
+    @mcp_app.tool()
+    def get_context(
+        project: str,
+        id: str = "latest",
+        target: str = "claude_code",
+        session_id: str = "default",
+    ) -> str:
+        """Alias for load_context matching documented MCP tools. Fenced against injection."""
+        res = svc.get_context(
+            project=project,
+            packet_id=id,
+            target=target,
+            session_id=session_id,
+        )
+        return json.dumps(res, indent=2)
+
+    @mcp_app.tool()
+    def verify_context(
+        project: str,
+        id: str,
+    ) -> str:
+        """Verify integrity: recompute hash, verify event chain, check ledger approvals."""
+        res = svc.verify_context(project=project, packet_id=id)
         return json.dumps(res, indent=2)
 
     @mcp_app.tool()
