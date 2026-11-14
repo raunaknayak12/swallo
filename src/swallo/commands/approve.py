@@ -51,6 +51,12 @@ def run_approve(argv: list[str]) -> int:
         help="Acknowledge repository staleness/drift and record cryptographic acknowledgment.",
     )
     parser.add_argument(
+        "--repo",
+        type=Path,
+        default=None,
+        help="Repository root path for staleness acknowledgment (defaults to auto-detection).",
+    )
+    parser.add_argument(
         "--accept-untrusted",
         action="store_true",
         help="Accept and approve an untrusted or externally imported packet.",
@@ -174,12 +180,17 @@ def run_approve(argv: list[str]) -> int:
     # 5. Optional staleness acknowledgment
     ack_mac: str | None = None
     if args.ack_stale:
-        repo_root = get_repo_root(Path.cwd()) or Path.cwd().resolve()
+        if args.repo:
+            repo_root = args.repo.resolve()
+        else:
+            repo_root = get_repo_root(Path.cwd()) or Path.cwd().resolve()
         try:
             body_dict = parse_canonical_json(body_raw)
             if isinstance(body_dict, dict):
                 packet = Packet.model_validate(body_dict)
-                report = check_staleness(packet, repo_root, conn, key_bytes)
+                report = check_staleness(
+                    packet, repo_root, conn, key_bytes, packet_hash_val=pkt_hash
+                )
                 if report.head_commit and report.drift_hash:
                     ack_mac = record_stale_ack(
                         conn,

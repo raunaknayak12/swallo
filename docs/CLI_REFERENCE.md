@@ -110,7 +110,7 @@ options:
 ## `swallo approve`
 
 ```
-usage: swallo approve [-h] [--target TARGET] [--ack-stale]
+usage: swallo approve [-h] [--target TARGET] [--ack-stale] [--repo REPO]
                       [--accept-untrusted] [--passphrase PASSPHRASE]
                       [--store STORE] [--json]
                       packet_id
@@ -126,6 +126,8 @@ options:
                         Target IDE or agent adapter (default: claude-code).
   --ack-stale           Acknowledge repository staleness/drift and record
                         cryptographic acknowledgment.
+  --repo REPO           Repository root path for staleness acknowledgment
+                        (defaults to auto-detection).
   --accept-untrusted    Accept and approve an untrusted or externally imported
                         packet.
   --passphrase PASSPHRASE

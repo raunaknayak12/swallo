@@ -321,7 +321,9 @@ class SwalloService:
             packet = Packet.model_validate(packet_dict)
 
             # Staleness and Drift Check
-            report = check_staleness(packet, proj_root, conn, self.key_bytes)
+            report = check_staleness(
+                packet, proj_root, conn, self.key_bytes, packet_hash_val=pkt_hash
+            )
             warnings = enforce_stale_policy(report, self.config.stale.policy_mcp)
 
             # Render through adapter

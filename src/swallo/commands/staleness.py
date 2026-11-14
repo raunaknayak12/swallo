@@ -104,6 +104,7 @@ def run_staleness(argv: list[str]) -> int:
         repo_root=repo_root,
         conn=conn,
         key_bytes=key_bytes,
+        packet_hash_val=pkt_hash,
     )
 
     if args.json:
