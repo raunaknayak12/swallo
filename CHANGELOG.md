@@ -4,6 +4,11 @@ All notable changes to this project will be documented here. Format follows Keep
 
 ## [0.1.3] - 2026-11-13
 
+### Security
+- **terminal**: Enforce ANSI escape and terminal control character sanitization on packet metadata, goals, project names, and warnings rendered by `swallo show`, `swallo status`, and `swallo list` to defend against terminal injection attacks.
+- **approve**: Removed `--force` / `-f` testing bypass flag from `swallo approve` CLI in production code, guaranteeing mandatory human approval on interactive TTYs without non-interactive bypass vectors.
+- **config**: Disallow `ide_agent_autoapprove = true` configuration to prevent autonomous agents from subverting human approval gates.
+
 ### Fixed
 - **status / list**: Decode SQLite `body` column BLOB bytes (`bytes` or `memoryview`) into UTF-8 text prior to canonical JSON parsing. Gracefully report corrupted rows as `<corrupt>` with warning output rather than crashing.
 - **prompt**: Make Pydantic `Item` model the authoritative source of truth. Derive valid kinds (`decision`, `constraint`, `question`, `artifact_ref`) dynamically in prompt output; sample JSON now includes required `created_at` and `sources` fields.
