@@ -15,9 +15,18 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from swallo.cli import KNOWN_COMMANDS
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 13),
+    reason=(
+        "Python 3.13+ argparse changed help output formatting (e.g. deduplicating option "
+        "metavars). CLI reference docs are generated with canonical Python 3.11/3.12."
+    ),
+)
 def test_cli_reference_generator_check_mode() -> None:
     """Run `scripts/gen_cli_docs.py --check` and verify CLI_REFERENCE.md is in sync."""
     repo_root = Path(__file__).resolve().parents[1]
