@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -69,10 +70,12 @@ def test_approve_normalizes_target_and_rejects_unknown(tmp_path: Path) -> None:
 
     # 1. Unknown target must raise UsageError with supported targets listed
     with pytest.raises(UsageError, match="Supported targets"):
-        run_approve([pkt_id, "--target", "nonexistent-target", "--force", "--store", str(tmp_path)])
+        run_approve([pkt_id, "--target", "nonexistent-target", "--store", str(tmp_path)])
 
     # 2. Approve with claude_code should normalize to claude-code in ledger
-    ret = run_approve([pkt_id, "--target", "claude_code", "--force", "--store", str(tmp_path)])
+    # Inject a "y" answer so confirm_on_terminal doesn't require a real TTY
+    with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+        ret = run_approve([pkt_id, "--target", "claude_code", "--store", str(tmp_path)])
     assert ret == 0
 
     conn = get_connection(tmp_path / "swallo.db")
@@ -132,3 +135,16 @@ def test_show_lists_supported_targets(tmp_path: Path, capsys: pytest.CaptureFixt
     captured = capsys.readouterr()
     assert "[APPROVED]      claude-code" in captured.out
     assert "antigravity" in captured.out
+    assert "cursor" in captured.out
+
+
+def test_new_approvals_end_to_end_targets(tmp_path: Path) -> None:
+    """Verify new approvals work end-to-end for claude-code, cursor, and antigravity."""
+    pkt_id, pkt_h, key_bytes = _setup_store_with_packet(tmp_path)
+    for target in ["claude-code", "cursor", "antigravity"]:
+        with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+            ret = run_approve([pkt_id, "--target", target, "--store", str(tmp_path)])
+        assert ret == 0
+        conn = get_connection(tmp_path / "swallo.db")
+        assert is_approved(conn, key_bytes, pkt_h, target) is True
+        conn.close()
