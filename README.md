@@ -49,17 +49,17 @@ flowchart TD
 
 ## Installation
 
-`swallo` is available on PyPI ([pypi.org/project/swallo/](https://pypi.org/project/swallo/)). Requires Python >= 3.11.
+`swallo` is available on PyPI ([pypi.org/project/swallo/](https://pypi.org/project/swallo/)) (`v0.1.3`). Requires Python >= 3.11.
 
 ```bash
 # Install swallo from PyPI (zero third-party runtime dependencies beyond Pydantic)
-pip install swallo
+pip install swallo==0.1.3
 
 # With optional extras:
-pip install "swallo[mcp]"     # FastMCP server integration
-pip install "swallo[sign]"    # Ed25519 passphrase signing via cryptography
-pip install "swallo[tokens]"  # Token counting via tiktoken
-pip install "swallo[dev]"     # Development, testing, and benchmark suite
+pip install "swallo[mcp]==0.1.3"     # FastMCP server integration
+pip install "swallo[sign]==0.1.3"    # Ed25519 passphrase signing via cryptography
+pip install "swallo[tokens]==0.1.3"  # Token counting via tiktoken
+pip install "swallo[dev]==0.1.3"     # Development, testing, and benchmark suite
 ```
 
 ### Dependency Isolation Guarantee
