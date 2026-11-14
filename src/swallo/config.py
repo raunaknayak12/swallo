@@ -17,7 +17,7 @@ import tomllib
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class StoreSettings(BaseModel):
@@ -42,6 +42,15 @@ class DeliverySettings(BaseModel):
 class TrustSettings(BaseModel):
     model_config = ConfigDict(extra="ignore")
     ide_agent_autoapprove: bool = False
+
+    @field_validator("ide_agent_autoapprove")
+    @classmethod
+    def _disallow_autoapprove(cls, v: bool) -> bool:
+        if v:
+            raise ValueError(
+                "ide_agent_autoapprove cannot be enabled: human TTY approval is mandatory (ADR-007)"
+            )
+        return False
 
 
 class BudgetSettings(BaseModel):
@@ -104,6 +113,24 @@ class Config(BaseModel):
     importer: ImporterSettings = Field(default_factory=ImporterSettings)
 
 
+def check_unknown_env_vars() -> None:
+    """Scan for unknown SWALLO_* environment variables and emit one-line hint to stderr."""
+    known_swallo_env = {
+        "SWALLO_HOME",
+        "SWALLO_STORAGE_DIR",
+        "SWALLO_KEY",
+        "SWALLO_DEBUG",
+        "SWALLO_TEST_STUB",
+    }
+    for env_k in os.environ:
+        if env_k.startswith("SWALLO_") and env_k not in known_swallo_env:
+            print(
+                f"Hint: Unrecognized environment variable '{env_k}'. "
+                "Did you mean SWALLO_HOME or SWALLO_STORAGE_DIR?",
+                file=sys.stderr,
+            )
+
+
 def get_store_dir(override: Path | str | None = None) -> Path:
     """
     Determine store directory without any third-party platformdir dependencies.
@@ -119,21 +146,7 @@ def get_store_dir(override: Path | str | None = None) -> Path:
     if override is not None:
         return Path(override).expanduser().resolve()
 
-    # Scan for unknown SWALLO_* environment variables and emit one-line hint
-    known_swallo_env = {
-        "SWALLO_HOME",
-        "SWALLO_STORAGE_DIR",
-        "SWALLO_KEY",
-        "SWALLO_DEBUG",
-        "SWALLO_TEST_STUB",
-    }
-    for env_k in os.environ:
-        if env_k.startswith("SWALLO_") and env_k not in known_swallo_env:
-            print(
-                f"Hint: Unrecognized environment variable '{env_k}'. "
-                "Did you mean SWALLO_HOME or SWALLO_STORAGE_DIR?",
-                file=sys.stderr,
-            )
+    check_unknown_env_vars()
 
     swallo_home = os.environ.get("SWALLO_HOME")
     swallo_storage_dir = os.environ.get("SWALLO_STORAGE_DIR")

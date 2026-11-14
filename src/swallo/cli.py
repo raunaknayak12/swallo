@@ -11,6 +11,7 @@ import platform
 import sys
 
 from swallo import __version__
+from swallo.config import check_unknown_env_vars
 from swallo.errors import UsageError
 
 SUPPORTED_SCHEMA_VERSIONS = ["0.1"]
@@ -63,6 +64,8 @@ def _run_version(as_json: bool) -> int:
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
+
+    check_unknown_env_vars()
 
     # Quick check for version flag
     if "--version" in argv or "-V" in argv:

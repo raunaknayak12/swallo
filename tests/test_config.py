@@ -127,3 +127,18 @@ def test_get_default_config_template_valid() -> None:
     parsed = tomllib.loads(template)
     assert "redact" in parsed
     assert "mcp" in parsed
+
+
+def test_autoapprove_cannot_be_enabled_in_config(tmp_path: Path) -> None:
+    store = tmp_path / "store"
+    store.mkdir()
+    config_file = store / "config.toml"
+    config_file.write_text(
+        """
+[trust]
+ide_agent_autoapprove = true
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(Exception, match="ide_agent_autoapprove cannot be enabled"):
+        load_config(store)
