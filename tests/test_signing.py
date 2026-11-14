@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -114,16 +115,16 @@ def test_approve_with_passphrase_cli(tmp_path: Path, capsys: pytest.CaptureFixtu
     conn.close()
 
     # 3. Approve with passphrase
-    rc = main([
-        "approve",
-        pkt_id,
-        "--store",
-        str(tmp_path),
-        "--force",
-        "--passphrase",
-        "secretPass123",
-        "--json",
-    ])
+    with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+        rc = main([
+            "approve",
+            pkt_id,
+            "--store",
+            str(tmp_path),
+            "--passphrase",
+            "secretPass123",
+            "--json",
+        ])
     assert rc == 0
     captured = capsys.readouterr()
     res = json.JSONDecoder().decode(captured.out)
@@ -134,15 +135,15 @@ def test_approve_with_passphrase_cli(tmp_path: Path, capsys: pytest.CaptureFixtu
 
     # 4. Attempting to approve with incorrect passphrase raises UsageError
     with pytest.raises(UsageError, match="Invalid passphrase"):
-        main([
-            "approve",
-            pkt_id,
-            "--store",
-            str(tmp_path),
-            "--force",
-            "--passphrase",
-            "wrongPass!",
-        ])
+        with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+            main([
+                "approve",
+                pkt_id,
+                "--store",
+                str(tmp_path),
+                "--passphrase",
+                "wrongPass!",
+            ])
 
 
 def test_signing_module_import_isolation(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -70,7 +71,8 @@ def test_load_command_lifecycle(
     capsys.readouterr()
 
     # 4. Approve for chat
-    assert main(["approve", pkt_id, "--target", "chat", "--force", "--store", str(store_dir)]) == 0
+    with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+        assert main(["approve", pkt_id, "--target", "chat", "--store", str(store_dir)]) == 0
     capsys.readouterr()
 
     # 5. Load to chat without --copied

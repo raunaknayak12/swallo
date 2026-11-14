@@ -3,10 +3,14 @@ Implementation of the 'swallo approve' command.
 
 Per ADR-003, ADR-007, IMPLEMENTATION_PLAN.md Step 4, and Security.md F2/F21:
 - Approval state lives in the local cryptographic ledger, keyed by (packet_hash, target).
-- Requires interactive confirmation on the controlling terminal (/dev/tty or CONIN$),
-  unless explicitly overridden with --force.
+- Requires interactive confirmation on the controlling terminal (/dev/tty or CONIN$).
+  There is NO --force flag; the TTY barrier cannot be bypassed at the CLI level.
 - There is NO approve tool in the MCP server; approval MUST be triggered via the CLI.
 - Optional passphrase signing (Ed25519) via swallo[sign] when signing mode is enabled.
+
+IMPORTANT: Tests must inject `_confirm_stream_in` via monkeypatching `confirm_on_terminal`
+  or via the `stream_in=` / `stream_out=` arguments to `confirm_on_terminal`. The --force
+  CLI flag does NOT exist; removing it closes the production-reachable TTY-bypass path.
 """
 
 from __future__ import annotations
@@ -40,12 +44,6 @@ def run_approve(argv: list[str]) -> int:
         "-t",
         default="claude-code",
         help="Target IDE or agent adapter (default: claude-code).",
-    )
-    parser.add_argument(
-        "--force",
-        "-f",
-        action="store_true",
-        help="Bypass interactive terminal confirmation.",
     )
     parser.add_argument(
         "--ack-stale",
@@ -109,18 +107,19 @@ def run_approve(argv: list[str]) -> int:
         )
 
     # 2. Terminal Confirmation check (ADR-007, F21)
-    if not args.force:
-        prompt = (
-            f"Approve packet '{pkt_id}' (project: '{project}') for delivery to '{args.target}'?"
-        )
-        confirmed = confirm_on_terminal(prompt, default=False)
-        if not confirmed:
-            msg = f"Approval aborted by user for packet '{pkt_id}'."
-            if args.json:
-                print(json.dumps({"status": "aborted", "id": pkt_id, "message": msg}))
-            else:
-                print(msg, file=sys.stderr)
-            return 1
+    # NOTE: --force flag removed (Phase 1-A security fix). The TTY barrier is mandatory.
+    # Tests must monkeypatch `swallo.terminal.confirm_on_terminal` or inject stream_in.
+    prompt = (
+        f"Approve packet '{pkt_id}' (project: '{project}') for delivery to '{args.target}'?"
+    )
+    confirmed = confirm_on_terminal(prompt, default=False)
+    if not confirmed:
+        msg = f"Approval aborted by user for packet '{pkt_id}'."
+        if args.json:
+            print(json.dumps({"status": "aborted", "id": pkt_id, "message": msg}))
+        else:
+            print(msg, file=sys.stderr)
+        return 1
 
     # 3. Write approval to cryptographic ledger
     mac = approve(conn, key_bytes, pkt_hash, args.target)
