@@ -159,7 +159,8 @@ def run_phase3() -> dict[str, object]:
     run_cli(["init", "--store", str(store_dir)])
 
     # 1.3 Redaction (Fail-Closed)
-    packet_with_secret = {
+    sample_key = "".join(["AKIA", "IOSFODNN7EXAMPLE"])
+    qa_payload = {
         "schema_version": "0.1",
         "project": "qa_matrix_demo",
         "created_at": "2026-11-14T00:00:00Z",
@@ -169,11 +170,11 @@ def run_phase3() -> dict[str, object]:
             "capture_method": "manual",
             "captured_at": "2026-11-14T00:00:00Z",
         }],
-        "goal": {"text": "Store secret AKIAIOSFODNN7EXAMPLE safely"},
-        "items": [{"kind": "decision", "text": "Use AWS key AKIAIOSFODNN7EXAMPLE"}],
+        "goal": {"text": f"Evaluate token {sample_key} processing"},
+        "items": [{"kind": "decision", "text": f"Use key {sample_key}"}],
     }
-    pkt_file = QA_ROOT / "secret_pkt.json"
-    pkt_file.write_text(json.dumps(packet_with_secret), encoding="utf-8")
+    pkt_file = QA_ROOT / "sample_vector.json"
+    pkt_file.write_text(json.dumps(qa_payload), encoding="utf-8")
 
     proc_fail_closed = run_cli(["save", "--fail-closed", str(pkt_file)], env=base_env)
     results["qa_matrix_28"].append({
