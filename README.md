@@ -3,7 +3,7 @@
 [![CI](https://github.com/raunaknayak12/swallo/actions/workflows/ci.yml/badge.svg)](https://github.com/raunaknayak12/swallo/actions/workflows/ci.yml)
 [![Clean Install](https://github.com/raunaknayak12/swallo/actions/workflows/clean-install.yml/badge.svg)](https://github.com/raunaknayak12/swallo/actions/workflows/clean-install.yml)
 [![CodeQL](https://github.com/raunaknayak12/swallo/actions/workflows/codeql.yml/badge.svg)](https://github.com/raunaknayak12/swallo/actions/workflows/codeql.yml)
-[![PyPI](https://img.shields.io/pypi/v/swallo)](https://pypi.org/project/swallo/)
+[![PyPI](https://img.shields.io/pypi/v/swallo.svg)](https://pypi.org/project/swallo/)
 [![Python 3.11+](https://img.shields.io/pypi/pyversions/swallo)](https://pypi.org/project/swallo/)
 [![License](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/raunaknayak12/swallo/blob/main/LICENSE)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/raunaknayak12/swallo/badge)](https://securityscorecards.dev/viewer/?uri=github.com/raunaknayak12/swallo)
