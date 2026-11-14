@@ -2,12 +2,14 @@
 Standard Model Context Protocol (MCP) server implementation for swallo.
 
 Per TRD.md section 3, 7, 8, 11 and CLI_AND_MCP_SPEC.md section 3:
-- Exposes 5 safe tools:
+- Exposes 7 safe tools:
   1. save_context (stores unapproved T1 draft; limits, redaction, rate limit, quota, dedupe)
   2. load_context (approved packets only; CSPRNG fence; staleness check; project-scoped)
-  3. merge_contexts (merges 1..N packets into unapproved draft with conflicts listed)
-  4. diff (item-level comparison with provenance tiers)
-  5. list_contexts (summary metadata only; never leaks stored content)
+  3. get_context (alias for load_context matching documented MCP tools)
+  4. verify_context (read-only integrity check; recomputes hash, verifies chain/ledger)
+  5. merge_contexts (merges 1..N packets into unapproved draft with conflicts listed)
+  6. diff (item-level comparison with provenance tiers)
+  7. list_contexts (summary metadata only; never leaks stored content)
 - Deliberately absent: NO approve tool (SR-06). Human approval happens strictly at TTY CLI.
 - No arbitrary file reads, no raw transcript returns.
 """
@@ -20,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from swallo.adapters.chat import ChatAdapter
-from swallo.adapters.registry import get_adapter
+from swallo.adapters.registry import get_adapter, list_supported_targets, normalize_target
 from swallo.config import Config, get_store_dir, load_config
 from swallo.errors import (
     IntegrityError,
@@ -55,6 +57,7 @@ from swallo.server.guards import (
 )
 from swallo.store.db import get_connection, get_or_create_local_key
 from swallo.store.eventlog import append as log_event
+from swallo.store.eventlog import verify as verify_eventlog
 from swallo.store.ledger import is_approved
 from swallo.store.objects import ObjectStore
 
@@ -265,10 +268,12 @@ class SwalloService:
         self,
         project: str,
         packet_id: str = "latest",
-        target: str = "claude_code",
+        target: str = "claude-code",
         session_id: str = "default",
     ) -> dict[str, Any]:
         """Load an approved packet for delivery to the requesting IDE agent."""
+        canonical_target = normalize_target(target)
+        legacy_target = "claude_code" if canonical_target == "claude-code" else canonical_target
         conn = get_connection(self.db_path)
         try:
             proj_name, proj_root = verify_project_registered(conn, project)
@@ -280,11 +285,11 @@ class SwalloService:
                         SELECT p.id, p.hash, p.body
                         FROM packets p
                         INNER JOIN approvals a ON p.hash = a.packet_hash
-                        WHERE p.project = ? AND (a.target = ? OR a.target = 'all')
+                        WHERE p.project = ? AND (a.target = ? OR a.target = ? OR a.target = 'all')
                         ORDER BY p.created_at DESC
                         LIMIT 1
                         """,
-                        (proj_name, target),
+                        (proj_name, canonical_target, legacy_target),
                     )
                 else:
                     cursor.execute(
@@ -306,9 +311,9 @@ class SwalloService:
             pkt_id, pkt_hash, body = str(row[0]), str(row[1]), bytes(row[2])
 
             # Verify Approval
-            if not is_approved(conn, self.key_bytes, pkt_hash, target):
+            if not is_approved(conn, self.key_bytes, pkt_hash, canonical_target):
                 raise NotApprovedError(
-                    f"Packet '{pkt_id}' is not approved for target '{target}'. "
+                    f"Packet '{pkt_id}' is not approved for target '{canonical_target}'. "
                     "Human approval required via 'swallo approve' CLI."
                 )
 
@@ -316,11 +321,13 @@ class SwalloService:
             packet = Packet.model_validate(packet_dict)
 
             # Staleness and Drift Check
-            report = check_staleness(packet, proj_root, conn, self.key_bytes)
+            report = check_staleness(
+                packet, proj_root, conn, self.key_bytes, packet_hash_val=pkt_hash
+            )
             warnings = enforce_stale_policy(report, self.config.stale.policy_mcp)
 
             # Render through adapter
-            adapter = get_adapter(target)
+            adapter = get_adapter(canonical_target)
             chat_renderer = adapter if isinstance(adapter, ChatAdapter) else ChatAdapter()
             rendered_body = chat_renderer.render(
                 packet_dict, token_budget=self.config.budget.default_tokens
@@ -334,14 +341,14 @@ class SwalloService:
                 self.key_bytes,
                 "served",
                 packet_hash=pkt_hash,
-                target=target,
+                target=canonical_target,
                 detail=f"mcp load_context served to session '{session_id}'",
             )
 
             return {
                 "id": pkt_id,
                 "hash": pkt_hash,
-                "target": target,
+                "target": canonical_target,
                 "content": fenced_output,
                 "warnings": warnings,
             }
@@ -499,6 +506,83 @@ class SwalloService:
         finally:
             conn.close()
 
+    def get_context(
+        self,
+        project: str,
+        packet_id: str = "latest",
+        target: str = "claude-code",
+        session_id: str = "default",
+    ) -> dict[str, Any]:
+        """Low-risk alias for load_context matching documented MCP tools."""
+        return self.load_context(
+            project=project,
+            packet_id=packet_id,
+            target=target,
+            session_id=session_id,
+        )
+
+    def verify_context(self, project: str, packet_id: str) -> dict[str, Any]:
+        """
+        Read-only verification tool: recompute hash, verify event chain, check ledger approvals.
+        Returns a structured report. Never returns plaintext secrets or content body.
+        """
+        conn = get_connection(self.db_path)
+        try:
+            proj_name, _ = verify_project_registered(conn, project)
+            cursor = conn.cursor()
+            try:
+                cursor.execute(
+                    """
+                    SELECT id, hash, body
+                    FROM packets
+                    WHERE (id = ? OR hash = ?) AND project = ?
+                    """,
+                    (packet_id, packet_id, proj_name),
+                )
+                row = cursor.fetchone()
+            finally:
+                cursor.close()
+
+            if not row:
+                raise UsageError(f"Packet '{packet_id}' not found in project '{proj_name}'.")
+
+            pkt_id, pkt_hash, body_raw = str(row[0]), str(row[1]), row[2]
+
+            # Recompute content hash from stored body
+            hash_verified = False
+            computed_h = None
+            try:
+                body_dict = parse_canonical_json(body_raw)
+                if isinstance(body_dict, dict):
+                    computed_h = packet_hash(body_dict)
+                    hash_verified = (computed_h == pkt_hash)
+            except Exception:
+                hash_verified = False
+
+            # Verify eventlog HMAC chain
+            event_errors = verify_eventlog(conn, self.key_bytes)
+            event_chain_ok = len(event_errors) == 0
+
+            # Check approval status across supported targets
+            supported_targets = list_supported_targets()
+            approvals = {
+                tgt: is_approved(conn, self.key_bytes, pkt_hash, tgt)
+                for tgt in supported_targets
+            }
+
+            return {
+                "packet_id": pkt_id,
+                "project": proj_name,
+                "stored_hash": pkt_hash,
+                "computed_hash": computed_h,
+                "hash_verified": hash_verified,
+                "event_chain_ok": event_chain_ok,
+                "event_errors": event_errors,
+                "approvals": approvals,
+            }
+        finally:
+            conn.close()
+
     def list_contexts(self, project: str, state: str = "all") -> list[dict[str, Any]]:
         """List summary metadata for packets in project (never returns content)."""
         conn = get_connection(self.db_path)
@@ -544,7 +628,7 @@ class SwalloService:
 
 
 def create_mcp_server(service: SwalloService | None = None) -> object:
-    """Create FastMCP server instance registering the 5 safe tools."""
+    """Create FastMCP server instance registering the 7 safe tools."""
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as e:
@@ -574,7 +658,7 @@ def create_mcp_server(service: SwalloService | None = None) -> object:
     def load_context(
         project: str,
         id: str = "latest",
-        target: str = "claude_code",
+        target: str = "claude-code",
         session_id: str = "default",
     ) -> str:
         """Load an approved packet for delivery to target IDE. Fenced against injection."""
@@ -584,6 +668,31 @@ def create_mcp_server(service: SwalloService | None = None) -> object:
             target=target,
             session_id=session_id,
         )
+        return json.dumps(res, indent=2)
+
+    @mcp_app.tool()
+    def get_context(
+        project: str,
+        id: str = "latest",
+        target: str = "claude-code",
+        session_id: str = "default",
+    ) -> str:
+        """Alias for load_context matching documented MCP tools. Fenced against injection."""
+        res = svc.get_context(
+            project=project,
+            packet_id=id,
+            target=target,
+            session_id=session_id,
+        )
+        return json.dumps(res, indent=2)
+
+    @mcp_app.tool()
+    def verify_context(
+        project: str,
+        id: str,
+    ) -> str:
+        """Verify integrity: recompute hash, verify event chain, check ledger approvals."""
+        res = svc.verify_context(project=project, packet_id=id)
         return json.dumps(res, indent=2)
 
     @mcp_app.tool()

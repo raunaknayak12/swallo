@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from swallo.config import get_store_dir
-from swallo.errors import UsageError
+from swallo.errors import UsageError, ValidationError
+from swallo.render.sanitize import sanitize_for_display
 from swallo.schema.canonical import parse_canonical_json
 from swallo.store.db import get_connection
 
@@ -76,14 +78,20 @@ def run_status(argv: list[str]) -> int:
         cursor.close()
 
     results: list[dict[str, object]] = []
+    has_corrupt = False
 
     for r in rows:
-        pkt_id, pkt_hash, proj, created_at, body_raw = (
+        raw_body = r[4]
+        if isinstance(raw_body, (bytes, memoryview)):
+            body_raw = bytes(raw_body).decode("utf-8", errors="replace")
+        else:
+            body_raw = str(raw_body)
+
+        pkt_id, pkt_hash, proj, created_at = (
             str(r[0]),
             str(r[1]),
             str(r[2]),
             str(r[3]),
-            str(r[4]),
         )
 
         # Determine state
@@ -102,6 +110,7 @@ def run_status(argv: list[str]) -> int:
 
         item_count = 0
         goal_text = ""
+        is_corrupt = False
         try:
             body_dict = parse_canonical_json(body_raw)
             if isinstance(body_dict, dict):
@@ -111,23 +120,31 @@ def run_status(argv: list[str]) -> int:
                 goal_obj = body_dict.get("goal")
                 if isinstance(goal_obj, dict):
                     goal_text = str(goal_obj.get("text") or "")
-        except (ValueError, TypeError, KeyError):
-            goal_text = ""
+            else:
+                is_corrupt = True
+        except (ValueError, TypeError, KeyError, ValidationError):
+            is_corrupt = True
 
+        if is_corrupt:
+            has_corrupt = True
+            goal_text = "<corrupt>"
+
+        clean_goal = sanitize_for_display(goal_text)
+        clean_proj = sanitize_for_display(proj)
         results.append({
             "id": pkt_id,
             "hash": pkt_hash,
-            "project": proj,
-            "state": state,
+            "project": clean_proj,
+            "state": "<corrupt>" if is_corrupt else state,
             "created_at": created_at,
             "items_count": item_count,
-            "goal": goal_text[:40] + ("..." if len(goal_text) > 40 else ""),
+            "goal": clean_goal[:40] + ("..." if len(clean_goal) > 40 else ""),
             "approved_targets": approved_map.get(pkt_hash, []),
         })
 
     if args.json:
         print(json.dumps(results, indent=2))
-        return 0
+        return 1 if has_corrupt else 0
 
     if not results:
         print("No packets found matching criteria.")
@@ -145,4 +162,10 @@ def run_status(argv: list[str]) -> int:
             f"{str(p['goal'])}"
         )
     print(f"\nTotal: {len(results)} packet(s).")
+    if has_corrupt:
+        print(
+            "Warning: One or more packet rows were corrupted and could not be fully parsed.",
+            file=sys.stderr,
+        )
+        return 1
     return 0

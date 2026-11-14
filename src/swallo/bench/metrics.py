@@ -173,6 +173,7 @@ def compute_guard_behavior_metric(iterations: int = 500) -> BenchResultEntry:
                 engine.redact(text, mode="fail_closed")
                 correct_count += 1
             except RedactionBlockedError:
+                # Benign text unexpectedly triggered redaction
                 pass
         else:
             # Sensitive token

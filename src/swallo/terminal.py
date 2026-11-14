@@ -71,8 +71,7 @@ def confirm_on_terminal(
     if not sys.stdin.isatty():
         raise UsageError(
             "Interactive human approval required, but controlling terminal is not available "
-            "(input is piped or environment is headless). Pass --force if automated "
-            "execution is intended."
+            "(input is piped or environment is headless)."
         )
 
     # Case 2: Controlling terminal on Windows (CONIN$ / CONOUT$)

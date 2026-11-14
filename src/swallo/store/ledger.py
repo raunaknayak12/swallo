@@ -72,32 +72,53 @@ def is_approved(
     """
     Verify whether a packet hash is currently approved for the specified target.
 
+    Supports both canonical hyphenated target names and legacy underscore variants
+    without requiring rewriting historical ledger rows. Each row's MAC is verified
+    against the exact target string originally recorded.
+
     Returns True ONLY if a matching row exists and its MAC verifies successfully.
     """
+    from swallo.adapters.registry import normalize_target
+
+    canonical = normalize_target(target)
+    legacy = canonical.replace("-", "_")
+    candidates = [canonical] if canonical == legacy else [canonical, legacy]
+
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            """
-            SELECT approved_at, mac
-            FROM approvals
-            WHERE packet_hash = ? AND target = ?
-            """,
-            (packet_hash, target),
-        )
-        row = cursor.fetchone()
+        # Avoid dynamic query construction: query candidates with fixed parameterized OR clauses
+        if len(candidates) == 1:
+            cursor.execute(
+                """
+                SELECT target, approved_at, mac
+                FROM approvals
+                WHERE packet_hash = ? AND target = ?
+                """,
+                (packet_hash, candidates[0]),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT target, approved_at, mac
+                FROM approvals
+                WHERE packet_hash = ? AND (target = ? OR target = ?)
+                """,
+                (packet_hash, candidates[0], candidates[1]),
+            )
+        rows = cursor.fetchall()
     finally:
         cursor.close()
 
-    if not row:
+    if not rows:
         return False
 
-    approved_at: str = row[0]
-    stored_mac: str = row[1]
+    for stored_target, approved_at, stored_mac in rows:
+        payload = f"approval\0{packet_hash}\0{stored_target}\0{approved_at}".encode()
+        expected_mac = hmac.new(key, payload, hashlib.sha256).hexdigest()
+        if hmac.compare_digest(stored_mac, expected_mac):
+            return True
 
-    payload = f"approval\0{packet_hash}\0{target}\0{approved_at}".encode()
-    expected_mac = hmac.new(key, payload, hashlib.sha256).hexdigest()
-
-    return hmac.compare_digest(stored_mac, expected_mac)
+    return False
 
 
 def revoke(

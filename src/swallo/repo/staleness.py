@@ -192,6 +192,7 @@ def check_staleness(
     conn: sqlite3.Connection | None = None,
     key_bytes: bytes | None = None,
     ttl_seconds: int = 86400,
+    packet_hash_val: str | None = None,
 ) -> StalenessReport:
     """
     Check if a packet has drifted from the current repository state.
@@ -278,11 +279,15 @@ def check_staleness(
     acknowledged = False
 
     if is_stale and conn is not None and key_bytes is not None:
-        pkt_hash = packet_hash(packet.model_dump(exclude_none=True))
+        p_hash = (
+            packet_hash_val
+            if packet_hash_val is not None
+            else packet_hash(packet.model_dump(exclude_none=True))
+        )
         acknowledged = is_ack_valid(
             conn=conn,
             key_bytes=key_bytes,
-            packet_hash=pkt_hash,
+            packet_hash=p_hash,
             head=head,
             drift_hash=drift_hash,
             ttl_seconds=ttl_seconds,

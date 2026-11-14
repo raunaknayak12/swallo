@@ -45,3 +45,8 @@ htmlcov/
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Test sandboxes and local QA environments outside and inside repo
+swallo-qa/
+*swallo-qa*
+.temp_test_projects/

@@ -35,6 +35,7 @@ def _get_git_commit() -> str:
         if proc.returncode == 0:
             return proc.stdout.strip()
     except (subprocess.SubprocessError, OSError):
+        # Git binary unavailable or directory not a git repository
         pass
     return "unknown"
 

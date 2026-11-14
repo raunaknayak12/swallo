@@ -15,6 +15,7 @@ import io
 import json
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -235,27 +236,27 @@ def test_cli_import_and_approval_gate(
 
     # Attempt to approve without --accept-untrusted (must raise UsageError)
     with pytest.raises(UsageError, match="--accept-untrusted"):
-        main([
+        with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+            main([
+                "approve",
+                pkt_id,
+                "--store",
+                str(store_dir),
+                "--target",
+                "chat",
+            ])
+
+    # Approve with --accept-untrusted (must succeed)
+    with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+        approve_rc = main([
             "approve",
             pkt_id,
             "--store",
             str(store_dir),
-            "--force",
             "--target",
             "chat",
+            "--accept-untrusted",
         ])
-
-    # Approve with --accept-untrusted (must succeed)
-    approve_rc = main([
-        "approve",
-        pkt_id,
-        "--store",
-        str(store_dir),
-        "--force",
-        "--target",
-        "chat",
-        "--accept-untrusted",
-    ])
     assert approve_rc == 0
     approve_out = capsys.readouterr().out
     assert "successfully approved" in approve_out

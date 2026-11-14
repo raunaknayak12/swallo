@@ -75,7 +75,7 @@ def run_edit(argv: list[str]) -> int:
     try:
         cur.execute(
             """
-            SELECT id, hash, body, project, session_id FROM packets
+            SELECT id, hash, body, project, schema_version, parent, origin FROM packets
             WHERE id = ? OR id LIKE ? OR hash = ? OR hash LIKE ?
             ORDER BY created_at DESC LIMIT 1
             """,
@@ -89,13 +89,14 @@ def run_edit(argv: list[str]) -> int:
         print(f"Error: Packet '{args.id}' not found.", file=sys.stderr)
         return 1
 
-    orig_id, _orig_hash, orig_body_raw, project, session_id = (
-        str(row[0]),
-        str(row[1]),
-        str(row[2]),
-        str(row[3]),
-        str(row[4]) if row[4] else None,
-    )
+    orig_id = str(row[0])
+    _orig_hash = str(row[1])
+    raw_body = row[2]
+    if isinstance(raw_body, (bytes, memoryview)):
+        orig_body_raw = bytes(raw_body).decode("utf-8", errors="replace")
+    else:
+        orig_body_raw = str(raw_body)
+    project = str(row[3])
 
     try:
         orig_dict = parse_canonical_json(orig_body_raw)
@@ -156,11 +157,19 @@ def run_edit(argv: list[str]) -> int:
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO packets (
-                    id, hash, project, session_id, created_at, expires_at, origin, body
+                    id, hash, schema_version, project, parent, created_at, body, origin, expires_at
                 )
-                VALUES (?, ?, ?, ?, ?, NULL, 'cli', ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'cli_edit', NULL)
                 """,
-                (new_id, new_hash, project, session_id, now_iso, canonical_bytes.decode("utf-8")),
+                (
+                    new_id,
+                    new_hash,
+                    packet.schema_version,
+                    packet.project,
+                    packet.parent or orig_id,
+                    now_iso,
+                    canonical_bytes,
+                ),
             )
         finally:
             cursor.close()

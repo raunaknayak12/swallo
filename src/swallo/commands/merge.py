@@ -18,17 +18,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Any
 
 from swallo.config import get_store_dir
 from swallo.merge.resolve import merge_packets
+from swallo.schema.canonical import parse_canonical_json
 from swallo.store.db import get_connection
 from swallo.store.objects import ObjectStore
 
 
-def _load_packet(conn: Any, packet_id: str) -> dict[str, Any] | None:
+def _load_packet(conn: sqlite3.Connection, packet_id: str) -> dict[str, Any] | None:
     """Load a packet dict from the DB by ID prefix or exact match."""
     cur = conn.execute(
         "SELECT body FROM packets WHERE id = ? OR id LIKE ? OR hash = ? OR hash LIKE ? "
@@ -42,7 +44,7 @@ def _load_packet(conn: Any, packet_id: str) -> dict[str, Any] | None:
         raw = row[0]
         if isinstance(raw, bytes):
             raw = raw.decode("utf-8")
-        data = json.loads(raw)
+        data = parse_canonical_json(raw)
         if not isinstance(data, dict):
             return None
         res: dict[str, Any] = data

@@ -23,6 +23,20 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Verify git tag matches pyproject version and CHANGELOG
+        run: |
+          TAG_VER="${GITHUB_REF_NAME#v}"
+          PYPROJECT_VER=$(python -c "import tomllib; f=open('pyproject.toml', 'rb'); print(tomllib.load(f)['project']['version'])")
+          if [ "$TAG_VER" != "$PYPROJECT_VER" ]; then
+            echo "Error: Tag version ($TAG_VER) does not match pyproject.toml ($PYPROJECT_VER)"
+            exit 1
+          fi
+          if ! grep -q "## \[$TAG_VER\]" CHANGELOG.md; then
+            echo "Error: CHANGELOG.md does not document release [$TAG_VER]"
+            exit 1
+          fi
+          echo "Verified tag $GITHUB_REF_NAME matches pyproject.toml and CHANGELOG.md"
+
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip

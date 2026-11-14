@@ -3,10 +3,14 @@ Implementation of the 'swallo approve' command.
 
 Per ADR-003, ADR-007, IMPLEMENTATION_PLAN.md Step 4, and Security.md F2/F21:
 - Approval state lives in the local cryptographic ledger, keyed by (packet_hash, target).
-- Requires interactive confirmation on the controlling terminal (/dev/tty or CONIN$),
-  unless explicitly overridden with --force.
+- Requires interactive confirmation on the controlling terminal (/dev/tty or CONIN$).
+  There is NO --force flag; the TTY barrier cannot be bypassed at the CLI level.
 - There is NO approve tool in the MCP server; approval MUST be triggered via the CLI.
 - Optional passphrase signing (Ed25519) via swallo[sign] when signing mode is enabled.
+
+IMPORTANT: Tests must inject `_confirm_stream_in` via monkeypatching `confirm_on_terminal`
+  or via the `stream_in=` / `stream_out=` arguments to `confirm_on_terminal`. The --force
+  CLI flag does NOT exist; removing it closes the production-reachable TTY-bypass path.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ import json
 import sys
 from pathlib import Path
 
+from swallo.adapters.registry import list_supported_targets, normalize_target
 from swallo.config import get_store_dir, load_config
 from swallo.errors import UsageError
 from swallo.repo.gitstate import get_repo_root
@@ -37,19 +42,19 @@ def run_approve(argv: list[str]) -> int:
     parser.add_argument(
         "--target",
         "-t",
-        default="claude_code",
-        help="Target IDE or agent adapter (default: claude_code).",
-    )
-    parser.add_argument(
-        "--force",
-        "-f",
-        action="store_true",
-        help="Bypass interactive terminal confirmation.",
+        default="claude-code",
+        help="Target IDE or agent adapter (default: claude-code).",
     )
     parser.add_argument(
         "--ack-stale",
         action="store_true",
         help="Acknowledge repository staleness/drift and record cryptographic acknowledgment.",
+    )
+    parser.add_argument(
+        "--repo",
+        type=Path,
+        default=None,
+        help="Repository root path for staleness acknowledgment (defaults to auto-detection).",
     )
     parser.add_argument(
         "--accept-untrusted",
@@ -65,6 +70,14 @@ def run_approve(argv: list[str]) -> int:
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON.")
 
     args = parser.parse_args(argv)
+
+    args.target = normalize_target(args.target)
+    supported_targets = list_supported_targets()
+    if args.target not in supported_targets:
+        supported_str = ", ".join(supported_targets)
+        raise UsageError(
+            f"Unsupported delivery target '{args.target}'. Supported targets: {supported_str}"
+        )
 
     store_dir = (args.store or get_store_dir()).resolve()
     db_path = store_dir / "swallo.db"
@@ -100,18 +113,19 @@ def run_approve(argv: list[str]) -> int:
         )
 
     # 2. Terminal Confirmation check (ADR-007, F21)
-    if not args.force:
-        prompt = (
-            f"Approve packet '{pkt_id}' (project: '{project}') for delivery to '{args.target}'?"
-        )
-        confirmed = confirm_on_terminal(prompt, default=False)
-        if not confirmed:
-            msg = f"Approval aborted by user for packet '{pkt_id}'."
-            if args.json:
-                print(json.dumps({"status": "aborted", "id": pkt_id, "message": msg}))
-            else:
-                print(msg, file=sys.stderr)
-            return 1
+    # NOTE: --force flag removed (Phase 1-A security fix). The TTY barrier is mandatory.
+    # Tests must monkeypatch `swallo.terminal.confirm_on_terminal` or inject stream_in.
+    prompt = (
+        f"Approve packet '{pkt_id}' (project: '{project}') for delivery to '{args.target}'?"
+    )
+    confirmed = confirm_on_terminal(prompt, default=False)
+    if not confirmed:
+        msg = f"Approval aborted by user for packet '{pkt_id}'."
+        if args.json:
+            print(json.dumps({"status": "aborted", "id": pkt_id, "message": msg}))
+        else:
+            print(msg, file=sys.stderr)
+        return 1
 
     # 3. Write approval to cryptographic ledger
     mac = approve(conn, key_bytes, pkt_hash, args.target)
@@ -166,12 +180,17 @@ def run_approve(argv: list[str]) -> int:
     # 5. Optional staleness acknowledgment
     ack_mac: str | None = None
     if args.ack_stale:
-        repo_root = get_repo_root(Path.cwd()) or Path.cwd().resolve()
+        if args.repo:
+            repo_root = args.repo.resolve()
+        else:
+            repo_root = get_repo_root(Path.cwd()) or Path.cwd().resolve()
         try:
             body_dict = parse_canonical_json(body_raw)
             if isinstance(body_dict, dict):
                 packet = Packet.model_validate(body_dict)
-                report = check_staleness(packet, repo_root, conn, key_bytes)
+                report = check_staleness(
+                    packet, repo_root, conn, key_bytes, packet_hash_val=pkt_hash
+                )
                 if report.head_commit and report.drift_hash:
                     ack_mac = record_stale_ack(
                         conn,

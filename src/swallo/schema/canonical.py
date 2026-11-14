@@ -111,12 +111,12 @@ def parse_canonical_json(raw: str | bytes) -> object:
             raise ValidationError("UTF-8 byte order mark (BOM) is forbidden in canonical JSON")
 
     try:
-        parsed = json.loads(
-            text,
+        decoder = json.JSONDecoder(
             parse_float=_reject_float,
             object_pairs_hook=_reject_duplicate_keys,
         )
-    except json.JSONDecodeError as err:
+        parsed = decoder.decode(text)
+    except (json.JSONDecodeError, ValueError) as err:
         raise ValidationError(f"Malformed JSON: {err}") from err
 
     # Recursively check integer bounds and string NFC normalization

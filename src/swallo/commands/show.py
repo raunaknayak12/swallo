@@ -18,6 +18,7 @@ import json
 import re
 from pathlib import Path
 
+from swallo.adapters.registry import list_supported_targets
 from swallo.config import get_store_dir
 from swallo.errors import UsageError
 from swallo.redact.decode import OpaqueBlobDetector
@@ -133,10 +134,18 @@ def run_show(argv: list[str]) -> int:
     packet_dict = parsed
 
     # Approvals check
-    known_targets = ["claude_code", "cursor", "antigravity"]
+    known_targets = list_supported_targets()
     approvals_status = {
         tgt: is_approved(conn, key_bytes, pkt_hash, tgt) for tgt in known_targets
     }
+
+    # Backward compatibility aliases for JSON output:
+    # 0.1.2 consumers / tests expect 'claude_code' and legacy targets like 'cursor'
+    json_approvals = dict(approvals_status)
+    if "claude-code" in json_approvals:
+        json_approvals["claude_code"] = json_approvals["claude-code"]
+    if "cursor" not in json_approvals:
+        json_approvals["cursor"] = is_approved(conn, key_bytes, pkt_hash, "cursor")
 
     # Generate risks
     risks = _scan_risks(packet_dict)
@@ -148,7 +157,7 @@ def run_show(argv: list[str]) -> int:
             "schema_version": schema_ver,
             "project": project,
             "created_at": created_at,
-            "approvals": approvals_status,
+            "approvals": json_approvals,
             "risk_summary": risks,
             "packet": packet_dict,
         }
@@ -171,15 +180,15 @@ def run_show(argv: list[str]) -> int:
         if risks["command_lines"]:
             print(f"  [WARN] Shell / Command Patterns ({len(risks['command_lines'])}):")
             for cmd in risks["command_lines"][:5]:
-                print(f"         - {cmd}")
+                print(f"         - {sanitize_for_display(cmd)}")
         if risks["urls"]:
             print(f"  [WARN] External URLs ({len(risks['urls'])}):")
             for u in risks["urls"][:5]:
-                print(f"         - {u}")
+                print(f"         - {sanitize_for_display(u)}")
         if risks["opaque_blobs"]:
             print(f"  [WARN] Opaque / High-Entropy Blobs ({len(risks['opaque_blobs'])}):")
             for b in risks["opaque_blobs"][:5]:
-                print(f"         - {b}")
+                print(f"         - {sanitize_for_display(b)}")
 
     print("\nTarget Approvals:")
     for tgt, approved in approvals_status.items():
@@ -187,10 +196,10 @@ def run_show(argv: list[str]) -> int:
         print(f"  {badge:15} {tgt}")
 
     print("================================================================================")
-    print(f"Packet ID:    {pkt_id}")
-    print(f"Hash:         {pkt_hash}")
-    print(f"Project:      {project}")
-    print(f"Created:      {created_at}")
+    print(f"Packet ID:    {sanitize_for_display(str(pkt_id))}")
+    print(f"Hash:         {sanitize_for_display(str(pkt_hash))}")
+    print(f"Project:      {sanitize_for_display(str(project))}")
+    print(f"Created:      {sanitize_for_display(str(created_at))}")
 
     goal = packet_dict.get("goal")
     if isinstance(goal, dict):

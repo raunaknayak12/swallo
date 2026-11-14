@@ -214,6 +214,18 @@ The following capabilities are explicitly deferred to v0.2 and are out of scope 
 | TestPyPI install & smoke test | **pending manual step** | Local wheel smoke test passed in isolated venv; remote upload and multi-OS smoke test pending maintainer manual execution. |
 | Name availability confirmed | **pending manual step** | PyPI and TestPyPI availability verified (ADR-032); final reservation upload pending maintainer manual execution. |
 
+## ADR-033: Elimination of Non-Interactive TTY Bypass in Production
+- **Context:** Testing shortcuts (e.g. `--force` / `-f` flag) could allow an autonomous agent or script executing in non-interactive environments to bypass human approval gates.
+- **Decision:** Completely eliminate `--force` / `-f` flags and test bypass parameters from the production CLI in the shipped wheel. Approval strictly requires a verified interactive TTY. Test suites simulate terminal interaction via explicit test harness monkeypatches that are never shipped.
+- **Consequences:** Autonomous agents with shell access cannot approve packets programmatically; security invariant F18 strictly holds.
+- **Status:** Accepted (Implemented in v0.1.3).
+
+## ADR-034: Supply-Chain Hardening & Trusted Publishing (OIDC)
+- **Context:** Secure open-source releases require cryptographic build provenance and defense against credential theft.
+- **Decision:** Mandate GitHub Actions Trusted Publishing (OIDC) for all PyPI and TestPyPI releases. Enforce SHA-pinned workflow actions, least-privilege token permissions, pre-release tag version synchronization against `pyproject.toml` and `CHANGELOG.md`, and automated OpenSSF Scorecard analysis. Manual uploads via API tokens or Twine are forbidden.
+- **Consequences:** Releases are fully reproducible, tamper-evident, and auditable.
+- **Status:** Accepted (Implemented in v0.1.3).
+
 ## Pending decisions
 - Antigravity and other target adapter details after verification.
 - Tuned default guard thresholds (breaker, token bucket, quotas, TTL), from real usage (ADR-028).

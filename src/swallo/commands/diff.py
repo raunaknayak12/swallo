@@ -15,16 +15,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Any
 
 from swallo.config import get_store_dir
 from swallo.merge.normalize import normalize_text, normalized_hash
+from swallo.schema.canonical import parse_canonical_json
 from swallo.store.db import get_connection
 
 
-def _load_items(conn: Any, packet_id: str) -> list[dict[str, Any]] | None:
+def _load_items(conn: sqlite3.Connection, packet_id: str) -> list[dict[str, Any]] | None:
     """Return the items list from the packet matching *packet_id*, or None."""
     cur = conn.execute(
         "SELECT body FROM packets WHERE id = ? OR id LIKE ? OR hash = ? OR hash LIKE ? "
@@ -38,11 +40,12 @@ def _load_items(conn: Any, packet_id: str) -> list[dict[str, Any]] | None:
         raw = row[0]
         if isinstance(raw, bytes):
             raw = raw.decode("utf-8")
-        data: dict[str, Any] = json.loads(raw)
-        items = data.get("items", [])
-        if isinstance(items, list):
-            result: list[dict[str, Any]] = items
-            return result
+        data = parse_canonical_json(raw)
+        if isinstance(data, dict):
+            items = data.get("items", [])
+            if isinstance(items, list):
+                result: list[dict[str, Any]] = items
+                return result
         return []
     except Exception:  # noqa: BLE001
         return None

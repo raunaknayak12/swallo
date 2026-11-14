@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -350,36 +351,35 @@ class TestCliMergeCommands:
         assert resolve_out["conflicts_remaining"] == 0
 
         # 6. Multi-packet send with conflict
-        assert (
-            main(
-                [
-                    "approve",
-                    id1,
-                    "--target",
-                    "claude-code",
-                    "--force",
-                    "--store",
-                    str(store_dir),
-                    "--json",
-                ]
+        with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+            assert (
+                main(
+                    [
+                        "approve",
+                        id1,
+                        "--target",
+                        "claude-code",
+                        "--store",
+                        str(store_dir),
+                        "--json",
+                    ]
+                )
+                == 0
             )
-            == 0
-        )
-        assert (
-            main(
-                [
-                    "approve",
-                    id2,
-                    "--target",
-                    "claude-code",
-                    "--force",
-                    "--store",
-                    str(store_dir),
-                    "--json",
-                ]
+            assert (
+                main(
+                    [
+                        "approve",
+                        id2,
+                        "--target",
+                        "claude-code",
+                        "--store",
+                        str(store_dir),
+                        "--json",
+                    ]
+                )
+                == 0
             )
-            == 0
-        )
 
         capsys.readouterr()
         res_fail = main(

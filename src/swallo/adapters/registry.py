@@ -13,11 +13,13 @@ from swallo.adapters.antigravity import AntigravityAdapter
 from swallo.adapters.base import BaseAdapter
 from swallo.adapters.chat import ChatAdapter
 from swallo.adapters.claude_code import ClaudeCodeAdapter
+from swallo.adapters.cursor import CursorAdapter
 from swallo.errors import UsageError
 
 # Registry mapping canonical target name to adapter class
 _ADAPTER_CLASSES: dict[str, type[BaseAdapter]] = {
     "claude-code": ClaudeCodeAdapter,
+    "cursor": CursorAdapter,
     "antigravity": AntigravityAdapter,
     "chat": ChatAdapter,
 }
@@ -26,6 +28,8 @@ _ADAPTER_CLASSES: dict[str, type[BaseAdapter]] = {
 _ALIASES: dict[str, str] = {
     "claude_code": "claude-code",
     "claude": "claude-code",
+    "cursorrules": "cursor",
+    "cursor-rules": "cursor",
     "agy": "antigravity",
     "gemini": "antigravity",
 }
@@ -34,7 +38,11 @@ _ALIASES: dict[str, str] = {
 def normalize_target(target: str) -> str:
     """Normalize a target name string."""
     key = target.strip().lower()
-    return _ALIASES.get(key, key)
+    canonical_alias = _ALIASES.get(key)
+    if canonical_alias is not None:
+        return canonical_alias
+    # Universally convert underscores to hyphens for target naming
+    return key.replace("_", "-")
 
 
 def list_supported_targets() -> list[str]:

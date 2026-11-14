@@ -42,15 +42,12 @@ def evaluate_tamper_detection() -> dict[str, Any]:
 
     event_detected = 0
     for sql, _name in event_tamper_tests:
-        # Clone db for isolated test
+        # Clone db for isolated test via SQLite backup
         test_conn = sqlite3.connect(":memory:")
-        db.apply_migrations(test_conn)
-        # Copy data
-        for line in conn.iterdump():
-            if "INSERT INTO" in line:
-                test_conn.execute(line)
+        conn.backup(test_conn)
         # Apply mutation
         test_conn.execute(sql)
+        test_conn.commit()
         errs = eventlog.verify(test_conn, key)
         if len(errs) > 0:
             event_detected += 1
@@ -74,11 +71,9 @@ def evaluate_tamper_detection() -> dict[str, Any]:
     ledger_detected = 0
     for sql, _name in ledger_tamper_tests:
         test_conn = sqlite3.connect(":memory:")
-        db.apply_migrations(test_conn)
-        for line in conn.iterdump():
-            if "INSERT INTO" in line:
-                test_conn.execute(line)
+        conn.backup(test_conn)
         test_conn.execute(sql)
+        test_conn.commit()
         # Should now be NOT approved
         approved = ledger.is_approved(test_conn, key, pkt_hash, target)
         if not approved:

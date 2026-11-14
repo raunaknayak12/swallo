@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -92,22 +93,22 @@ def test_full_packet_lifecycle_e2e(tmp_path: Path, capsys: pytest.CaptureFixture
     assert isinstance(urls, list)
     assert len(urls) >= 1
 
-    # 5. Approve packet for claude_code with --force
+    # 5. Approve packet for claude_code with terminal confirmation mocked (no --force in CLI)
     approve_args = [
         "approve",
         pkt_id,
         "--target",
         "claude_code",
-        "--force",
         "--store",
         str(store_dir),
         "--json",
     ]
-    assert main(approve_args) == 0
+    with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+        assert main(approve_args) == 0
     approve_raw = parse_canonical_json(capsys.readouterr().out)
     assert isinstance(approve_raw, dict)
     assert approve_raw["status"] == "approved"
-    assert approve_raw["target"] == "claude_code"
+    assert approve_raw["target"] in ("claude_code", "claude-code")
 
     # 6. Show packet after approval -> claude_code is approved!
     assert main(["show", pkt_id, "--store", str(store_dir), "--json"]) == 0
