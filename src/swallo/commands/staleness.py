@@ -41,7 +41,12 @@ def _lookup_packet(conn: sqlite3.Connection, identifier: str) -> tuple[str, str,
     row = cur.fetchone()
     if row is None:
         return None
-    return str(row[0]), str(row[1]), str(row[2])
+    raw_body = row[2]
+    if isinstance(raw_body, (bytes, memoryview)):
+        body_str = bytes(raw_body).decode("utf-8", errors="replace")
+    else:
+        body_str = str(raw_body)
+    return str(row[0]), str(row[1]), body_str
 
 
 def run_staleness(argv: list[str]) -> int:
