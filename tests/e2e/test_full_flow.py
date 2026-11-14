@@ -22,6 +22,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from swallo.schema.canonical import parse_canonical_json
 from swallo.schema.models import Packet
 from swallo.store.db import get_connection, get_or_create_local_key
 from swallo.store.ledger import approve
@@ -31,14 +32,15 @@ def _run_cli(
     args: list[str], env: dict[str, str], cwd: Path | None = None
 ) -> subprocess.CompletedProcess[str]:
     cmd = [sys.executable, "-m", "swallo", *args]
+    run_env = {**env, "PYTHONIOENCODING": "utf-8"}
     return subprocess.run(  # noqa: S603
         cmd,
-        env=env,
+        timeout=30,
+        env=run_env,
         cwd=cwd,
         stdin=subprocess.PIPE,
         capture_output=True,
         text=True,
-        timeout=30,
         check=False,
     )
 
@@ -58,11 +60,13 @@ def test_e2e_full_workflow(tmp_path: Path) -> None:
     # Step 1: Prompt generation and sample JSON validation
     res = _run_cli(["prompt", "--json"], env=env, cwd=project_dir)
     assert res.returncode == 0
-    prompt_json = json.loads(res.stdout)
+    prompt_json = parse_canonical_json(res.stdout)
+    assert isinstance(prompt_json, dict)
     prompt_body = prompt_json["prompt"]
     match = re.search(r"```json\s*(\{.*?\})\s*```", prompt_body, re.DOTALL)
     assert match is not None
-    sample_packet = json.loads(match.group(1))
+    sample_packet = parse_canonical_json(match.group(1))
+    assert isinstance(sample_packet, dict)
     validated = Packet.model_validate(sample_packet)
     assert validated.schema_version == "0.1"
 
@@ -113,7 +117,8 @@ def test_e2e_full_workflow(tmp_path: Path) -> None:
         cwd=project_dir,
     )
     assert res_save.returncode == 0
-    save_data = json.loads(res_save.stdout)
+    save_data = parse_canonical_json(res_save.stdout)
+    assert isinstance(save_data, dict)
     packet_id = save_data["id"]
     pkt_hash = save_data["hash"]
     assert packet_id.startswith("pkt_")
@@ -121,7 +126,8 @@ def test_e2e_full_workflow(tmp_path: Path) -> None:
     # Step 3: Status / List command
     res_status = _run_cli(["status", "--json"], env=env, cwd=project_dir)
     assert res_status.returncode == 0
-    status_list = json.loads(res_status.stdout)
+    status_list = parse_canonical_json(res_status.stdout)
+    assert isinstance(status_list, list)
     assert any(p["id"] == packet_id for p in status_list)
 
     # Step 4: Show command (verify risk summary and zero plaintext secret leaks)
@@ -161,7 +167,8 @@ def test_e2e_full_workflow(tmp_path: Path) -> None:
         cwd=project_dir,
     )
     assert res_save2.returncode == 0
-    save_data2 = json.loads(res_save2.stdout)
+    save_data2 = parse_canonical_json(res_save2.stdout)
+    assert isinstance(save_data2, dict)
     assert save_data2["id"] == packet_id
     assert save_data2["hash"] == pkt_hash
 

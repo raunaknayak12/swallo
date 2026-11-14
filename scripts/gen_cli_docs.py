@@ -56,6 +56,10 @@ def generate_cli_reference() -> str:
             env=env,
         )
         help_text = (proc.stdout or proc.stderr).strip()
+        if cmd == "version":
+            import re
+
+            help_text = re.sub(r"python: \d+\.\d+.*", "python: <python_version>", help_text)
         lines.append(f"## `swallo {cmd}`")
         lines.append("")
         lines.append("```")

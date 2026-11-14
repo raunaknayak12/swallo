@@ -409,5 +409,5 @@ options:
 ```
 swallo 0.1.3
 supported schema versions: 0.1
-python: 3.12.10 (64bit)
+python: <python_version>
 ```
