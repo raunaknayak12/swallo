@@ -51,3 +51,4 @@ Every regex in `src/swallo/redact/` was evaluated against crafted polynomial and
 - Maximum execution time: 14.2ms
 - Hard test timeout threshold: 100ms (10x safety margin)
 - Zero ReDoS vulnerabilities detected across all patterns.
+

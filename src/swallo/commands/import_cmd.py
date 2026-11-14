@@ -172,6 +172,7 @@ def run_import(argv: list[str]) -> int:
                     if 0 <= c_idx < len(sessions):
                         selected_id = sessions[c_idx].id
                 except ValueError:
+                    # Non-integer selection; default to the first session
                     pass
         pkt = importer.extract_session(archive_path, selected_id, project=args.project)
         packets_to_save.append(pkt)

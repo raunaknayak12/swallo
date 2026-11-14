@@ -62,6 +62,7 @@ def get_repo_root(cwd: Path | str) -> Path | None:
             if top:
                 return Path(top).resolve()
     except (subprocess.SubprocessError, FileNotFoundError, PermissionError):
+        # Git command failed or binary not found
         pass
     return None
 
@@ -85,6 +86,7 @@ def get_git_commit(cwd: Path | str) -> str | None:
             if len(commit) == 40:
                 return commit
     except (subprocess.SubprocessError, FileNotFoundError, PermissionError):
+        # Git command failed or directory not a git repo
         pass
     return None
 
@@ -106,6 +108,7 @@ def is_git_dirty(cwd: Path | str) -> bool:
         if res.returncode == 0:
             return bool(res.stdout.strip())
     except (subprocess.SubprocessError, FileNotFoundError, PermissionError):
+        # Git command failed or directory not a git repo
         pass
     return False
 
@@ -145,6 +148,7 @@ def hash_git_object(cwd: Path | str, relative_path: str) -> str | None:
                 if len(h) == 40:
                     return h
         except (subprocess.SubprocessError, FileNotFoundError, PermissionError):
+            # Fall back to pure Python blob hashing if git command fails
             pass
 
     try:

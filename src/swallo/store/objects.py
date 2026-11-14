@@ -77,6 +77,7 @@ class ObjectStore:
                 finally:
                     os.close(dir_fd)
             except OSError:
+                # Directory fsync is advisory; ignore filesystems that do not support it
                 pass
 
         return hash_

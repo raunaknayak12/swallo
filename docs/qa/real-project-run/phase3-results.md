@@ -96,3 +96,4 @@ Verification was conducted on working copies located in `C:\swallo-qa\real_proje
 8. **Staleness Packet Hash Mismatch:**
    - **Root Cause:** `check_staleness` recomputed packet hash from `packet.model_dump(exclude_none=True)` which omitted `None` fields and differed from the canonical stored hash in `stale_acks`.
    - **Fix:** Added `packet_hash_val` parameter to `check_staleness` and `--repo` argument to `swallo approve`. Committed in `7ae8041`.
+

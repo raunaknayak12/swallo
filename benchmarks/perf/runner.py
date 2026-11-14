@@ -97,26 +97,36 @@ def _generate_realistic_transcript(target_bytes: int) -> str:
     """
     blocks = [
         # Conversational dialogue
-        "User: How should we structure the zero-network handoff packet for multi-agent handoffs?\n"
-        "Agent: The handoff packet needs to be self-contained, canonicalized using RFC-standard JSON, "
-        "and signed with Ed25519 or HMAC-SHA256. All volatile timestamps must be decoupled from content address.\n",
+        (
+            "User: How should we structure the zero-network handoff packet for multi-agent handoffs?\n"
+            + "Agent: The handoff packet needs to be self-contained, canonicalized using RFC-standard JSON, "
+            + "and signed with Ed25519 or HMAC-SHA256. All volatile timestamps must be decoupled from content address.\n"
+        ),
         # Tool call JSON
-        '```json\n{\n  "action": "list_contexts",\n  "project": "swallo_core",\n  "status": "active",\n  '
-        '"count": 42,\n  "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"\n}\n```\n',
+        (
+            '```json\n{\n  "action": "list_contexts",\n  "project": "swallo_core",\n  "status": "active",\n  '
+            + '"count": 42,\n  "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"\n}\n```\n'
+        ),
         # Python code snippet (literal sample text for transcript generation - not executed)
-        '```python\ndef sanitize_packet_payload(data: bytes, max_depth: int = 50) -> dict[str, Any]:\n'
-        '    """Enforce defensive nesting limits against JSON bomb denial of service."""\n'
-        '    parsed = safe_json_loads(data.decode("utf-8"))  # wraps json.loads with error handling\n'
-        '    _assert_depth_bounded(parsed, current_depth=1, limit=max_depth)\n'
-        '    return parsed\n```\n',
+        (
+            '```python\ndef sanitize_packet_payload(data: bytes, max_depth: int = 50) -> dict[str, Any]:\n'
+            + '    """Enforce defensive nesting limits against JSON bomb denial of service."""\n'
+            + '    parsed = safe_json_loads(data.decode("utf-8"))  # wraps json.loads with error handling\n'
+            + '    _assert_depth_bounded(parsed, current_depth=1, limit=max_depth)\n'
+            + '    return parsed\n```\n'
+        ),
         # Git diff block
-        '```diff\n--- a/src/swallo/redact/decode.py\n+++ b/src/swallo/redact/decode.py\n@@ -25,2 +25,4 @@\n'
-        '-MAX_DECODE_DEPTH = 2\n+MAX_DECODE_DEPTH = 3\n+MAX_DECODED_SIZE = 64 * 1024\n```\n',
+        (
+            '```diff\n--- a/src/swallo/redact/decode.py\n+++ b/src/swallo/redact/decode.py\n@@ -25,2 +25,4 @@\n'
+            + '-MAX_DECODE_DEPTH = 2\n+MAX_DECODE_DEPTH = 3\n+MAX_DECODED_SIZE = 64 * 1024\n```\n'
+        ),
         # Traceback / log output
-        "DEBUG [2026-11-11T00:15:00Z] swallo.server.guards: Token bucket check passed (tokens_remaining=8.4)\n"
-        "INFO [2026-11-11T00:15:01Z] swallo.store.db: Migration applied successfully (version=1)\n"
-        "Traceback (most recent call last):\n  File 'runner.py', line 42, in execute\n    safe_json_loads(data)\n"
-        "swallo.errors.SecurityError: Nested JSON depth exceeds maximum threshold of 64\n",
+        (
+            "DEBUG [2026-11-11T00:15:00Z] swallo.server.guards: Token bucket check passed (tokens_remaining=8.4)\n"
+            + "INFO [2026-11-11T00:15:01Z] swallo.store.db: Migration applied successfully (version=1)\n"
+            + "Traceback (most recent call last):\n  File 'runner.py', line 42, in execute\n    safe_json_loads(data)\n"
+            + "swallo.errors.SecurityError: Nested JSON depth exceeds maximum threshold of 64\n"
+        ),
     ]
 
     parts: list[str] = []

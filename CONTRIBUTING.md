@@ -21,6 +21,24 @@ pytest
 ruff check . && ruff format --check . && mypy src
 ```
 
+## Testing policy
+
+Every contribution must maintain high quality and regression safety:
+- **Unit and Integration Tests:** Run `pytest` across Python 3.11, 3.12, and 3.13. All existing tests must pass with zero warnings (`python -W error`).
+- **Property-Based Testing:** Parsers, canonical JSON serialization, and sanitization routines must include Hypothesis property-based tests.
+- **Adversarial & ReDoS Guardrails:** Any new regex in `src/swallo/redact` must pass adversarial ReDoS testing under a hard 100ms timeout.
+- **Coverage Invariant:** New code must maintain or improve overall test coverage. Blanket suppressions, skipif without justification, and xfail on production paths are prohibited.
+- **Pre-Push Verification:** Run Ruff, Mypy strict (`mypy src/swallo`), and Bandit security checks prior to creating a pull request.
+
+## Release process
+
+Releases follow semantic versioning (`vMAJOR.MINOR.PATCH`) with strict supply-chain controls:
+1. **Version Alignment:** Version must be synchronized across `pyproject.toml`, `src/swallo/__version__.py`, `CHANGELOG.md`, and the release tag.
+2. **Automated CI Gate:** All CI matrix jobs (Linux, macOS, Windows across Python 3.11/3.12/3.13), CodeQL security-extended analysis, and Bandit scans must be green on the release commit.
+3. **Trusted Publishing (OIDC):** Package builds and publishes are performed exclusively through GitHub Actions via PyPI Trusted Publishing with cryptographic build provenance attestations. Manual uploads using API tokens or Twine from developer machines are forbidden.
+4. **Environment Approvals:** Publishing jobs are gated by required maintainer reviews in the `pypi` and `testpypi` GitHub environments.
+5. **Rollback Policy:** PyPI releases are immutable. Defective releases must be yanked with a stated reason on PyPI and superseded by an immediate patch release.
+
 ## Pull requests
 
 1. Open an issue first for non-trivial changes.

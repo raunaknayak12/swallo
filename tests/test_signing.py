@@ -11,6 +11,7 @@ Covers:
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -29,12 +30,7 @@ from swallo.store.signing import (
     verify_signature,
 )
 
-try:
-    import cryptography  # noqa: F401
-
-    HAS_CRYPTO = True
-except ImportError:
-    HAS_CRYPTO = False
+HAS_CRYPTO = importlib.util.find_spec("cryptography") is not None
 
 requires_crypto = pytest.mark.skipif(
     not HAS_CRYPTO, reason="Passphrase signing requires the 'sign' extra ('swallo[sign]')"

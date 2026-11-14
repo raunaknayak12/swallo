@@ -15,7 +15,10 @@ import json
 import secrets
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from swallo.errors import UsageError
 
@@ -98,7 +101,7 @@ def derive_key(
     n: int = DEFAULT_SCRYPT_N,
     r: int = DEFAULT_SCRYPT_R,
     p: int = DEFAULT_SCRYPT_P,
-) -> Any:
+) -> Ed25519PrivateKey:
     """
     Derive an Ed25519PrivateKey from a user passphrase and salt using scrypt.
 
@@ -116,13 +119,14 @@ def derive_key(
         maxmem=DEFAULT_SCRYPT_MAXMEM,
     )
     from_private_bytes = ed25519_priv_cls.from_private_bytes
-    return from_private_bytes(seed)
+    key: Ed25519PrivateKey = from_private_bytes(seed)
+    return key
 
 
 def init_signing_keys(
     passphrase: str,
     salt: bytes | None = None,
-) -> tuple[StoredSigningMeta, Any]:
+) -> tuple[StoredSigningMeta, Ed25519PrivateKey]:
     """
     Initialize signing keys from passphrase.
 
@@ -149,7 +153,7 @@ def init_signing_keys(
     return meta, private_key
 
 
-def sign_payload(private_key: Any, payload: bytes) -> str:
+def sign_payload(private_key: Ed25519PrivateKey, payload: bytes) -> str:
     """
     Sign a payload using the derived Ed25519 private key.
 
