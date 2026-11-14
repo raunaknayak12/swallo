@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -91,15 +92,15 @@ def test_send_lifecycle_e2e(tmp_path: Path) -> None:
     ]) == 6
 
     # 5. Approve packet for claude-code
-    approve_code = main([
-        "approve",
-        pkt_id,
-        "--target",
-        "claude-code",
-        "--force",
-        "--store",
-        str(store_dir),
-    ])
+    with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+        approve_code = main([
+            "approve",
+            pkt_id,
+            "--target",
+            "claude-code",
+            "--store",
+            str(store_dir),
+        ])
     assert approve_code == 0
 
     # 6. Dry run after approval succeeds without writing files
@@ -192,7 +193,8 @@ def test_send_to_chat_target(tmp_path: Path) -> None:
     conn.close()
 
     # Approve for chat
-    assert main(["approve", pkt_id, "--target", "chat", "--force", "--store", str(store_dir)]) == 0
+    with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+        assert main(["approve", pkt_id, "--target", "chat", "--store", str(store_dir)]) == 0
 
     # Send to chat
     assert (
@@ -250,7 +252,8 @@ def test_send_adds_to_gitignore(tmp_path: Path) -> None:
     pkt_id = cur.fetchone()[0]
     conn.close()
 
-    assert main(["approve", pkt_id, "--target", "chat", "--force", "--store", str(store_dir)]) == 0
+    with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+        assert main(["approve", pkt_id, "--target", "chat", "--store", str(store_dir)]) == 0
     assert (
         main([
             "send",
@@ -331,7 +334,8 @@ def test_send_warns_if_swallo_files_staged(
     pkt_id = str(cur.fetchone()[0])
     conn.close()
 
-    assert main(["approve", pkt_id, "--target", "chat", "--force", "--store", str(store_dir)]) == 0
+    with patch("swallo.commands.approve.confirm_on_terminal", return_value=True):
+        assert main(["approve", pkt_id, "--target", "chat", "--store", str(store_dir)]) == 0
 
     # Stage a fake swallo file
     fake_swallo = project_root / ".swallo" / "fake.txt"

@@ -156,6 +156,7 @@ def run_doctor(argv: list[str]) -> int:
         overall_ok = False
 
     # 4. SQLite Database and Migrations Check
+    projs: list[dict[str, Any]] = []
     if not db_path.exists():
         checks.append(
             {
@@ -242,7 +243,7 @@ def run_doctor(argv: list[str]) -> int:
                 "Interactive terminal available for human approval"
                 if term_ok
                 else "Non-interactive / piped environment (commands requiring "
-                "confirmation will require --force)"
+                "confirmation require an interactive TTY)"
             ),
         }
     )
@@ -262,6 +263,7 @@ def run_doctor(argv: list[str]) -> int:
                 if "swallo" in cand_content.lower():
                     workspace_mcp_warns.append(str(cand_file.relative_to(cwd)))
             except (OSError, PermissionError):
+                # Ignore unreadable workspace config files
                 pass
 
     if workspace_mcp_warns:
@@ -288,7 +290,7 @@ def run_doctor(argv: list[str]) -> int:
     # 9. Workspace Root Registration Check
     cwd_registered = any(
         Path(p["root_path"]).resolve() == cwd for p in projs
-    ) if "projs" in locals() else False
+    )
     if not cwd_registered:
         checks.append(
             {
@@ -315,6 +317,7 @@ def run_doctor(argv: list[str]) -> int:
                 if f.is_file():
                     rogue_files.append(f.name)
         except (OSError, PermissionError):
+            # Ignore inaccessible files in handoff dir
             pass
 
     if rogue_files:

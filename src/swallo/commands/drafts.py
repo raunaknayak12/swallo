@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sqlite3
 import sys
 from datetime import UTC, datetime, timedelta
@@ -18,8 +19,29 @@ from pathlib import Path
 
 from swallo.config import get_store_dir
 from swallo.errors import UsageError
+from swallo.schema.canonical import parse_canonical_json
 from swallo.store.db import get_connection
 from swallo.terminal import confirm_on_terminal
+
+_logger = logging.getLogger(__name__)
+
+
+def _extract_session_id(body_raw: object) -> str | None:
+    """Extract session_id from packet sources metadata in canonical body."""
+    if isinstance(body_raw, (bytes, memoryview)):
+        body_str = bytes(body_raw).decode("utf-8", errors="replace")
+    else:
+        body_str = str(body_raw)
+    try:
+        data = parse_canonical_json(body_str)
+        if isinstance(data, dict):
+            sources = data.get("sources")
+            if isinstance(sources, list) and sources and isinstance(sources[0], dict):
+                sid = sources[0].get("session_id")
+                return str(sid) if sid else None
+    except Exception as exc:
+        _logger.debug("Failed to extract session_id from packet body: %s", exc)
+    return None
 
 
 def _get_drafts_query(
@@ -30,15 +52,11 @@ def _get_drafts_query(
 ) -> list[dict[str, object]]:
     """Retrieve unapproved drafts matching criteria."""
     query = """
-        SELECT id, hash, project, session_id, created_at, expires_at, LENGTH(body)
+        SELECT id, hash, project, created_at, expires_at, LENGTH(body), body
         FROM packets
         WHERE hash NOT IN (SELECT packet_hash FROM approvals)
     """
     params: list[object] = []
-
-    if session_id:
-        query += " AND session_id = ?"
-        params.append(session_id)
 
     if project:
         query += " AND project = ?"
@@ -57,14 +75,17 @@ def _get_drafts_query(
         rows = cursor.fetchall()
         drafts: list[dict[str, object]] = []
         for r in rows:
+            extracted_sid = _extract_session_id(r[6])
+            if session_id and extracted_sid != session_id:
+                continue
             drafts.append({
                 "id": str(r[0]),
                 "hash": str(r[1]),
                 "project": str(r[2]),
-                "session_id": str(r[3]) if r[3] else None,
-                "created_at": str(r[4]),
-                "expires_at": str(r[5]) if r[5] else None,
-                "bytes": int(r[6]),
+                "session_id": extracted_sid,
+                "created_at": str(r[3]),
+                "expires_at": str(r[4]) if r[4] else None,
+                "bytes": int(r[5]),
             })
         return drafts
     finally:

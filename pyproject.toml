@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "swallo"
-version = "0.1.2"
+version = "0.1.3"
 description = "Portable, reviewable handoff between any chat agent and any IDE"
 readme = "README.md"
 license = "MIT OR Apache-2.0"

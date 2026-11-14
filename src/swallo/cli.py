@@ -5,12 +5,14 @@ Command line interface for swallo.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import difflib
 import json
 import platform
 import sys
 
 from swallo import __version__
+from swallo.config import check_unknown_env_vars
 from swallo.errors import UsageError
 
 SUPPORTED_SCHEMA_VERSIONS = ["0.1"]
@@ -63,6 +65,16 @@ def _run_version(as_json: bool) -> int:
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
+
+    # Ensure UTF-8 output on Windows consoles/pipes with fallback for unencodable chars
+    if hasattr(sys.stdout, "reconfigure"):
+        with contextlib.suppress(Exception):
+            sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+    if hasattr(sys.stderr, "reconfigure"):
+        with contextlib.suppress(Exception):
+            sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+
+    check_unknown_env_vars()
 
     # Quick check for version flag
     if "--version" in argv or "-V" in argv:

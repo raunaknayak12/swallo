@@ -11,12 +11,27 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 
 from swallo.capture.prompt import generate_handoff_prompt
 
 
 def run_prompt(argv: list[str]) -> int:
     """Entry point for 'swallo prompt'."""
+    # Check if user tried to pass a title or input text via -t like `swallo prompt -t "my title"`
+    if "-t" in argv:
+        t_idx = argv.index("-t")
+        if t_idx + 1 < len(argv):
+            candidate = argv[t_idx + 1]
+            valid_targets = {"claude_code", "claude-code", "cursor", "antigravity", "chat"}
+            if candidate.lower() not in valid_targets:
+                print(
+                    "Error: 'swallo prompt' only prints instructions for chat agents; "
+                    "to ingest, use 'swallo save <file>'.",
+                    file=sys.stderr,
+                )
+                return 2
+
     parser = argparse.ArgumentParser(
         prog="swallo prompt",
         description="Generate a structured handoff prompt to paste into a chat agent.",

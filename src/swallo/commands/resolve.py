@@ -16,17 +16,21 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Any
 
 from swallo.config import get_store_dir
 from swallo.merge.resolve import resolve_conflict
+from swallo.schema.canonical import parse_canonical_json
 from swallo.store.db import get_connection
 from swallo.store.objects import ObjectStore
 
 
-def _load_packet_json(conn: Any, packet_id: str) -> tuple[str, dict[str, Any]] | None:
+def _load_packet_json(
+    conn: sqlite3.Connection, packet_id: str
+) -> tuple[str, dict[str, Any]] | None:
     """Return (raw_json, parsed_dict) for the packet matching *packet_id*."""
     cur = conn.execute(
         "SELECT id, body FROM packets WHERE id = ? OR id LIKE ? OR hash = ? OR hash LIKE ? "
@@ -40,8 +44,10 @@ def _load_packet_json(conn: Any, packet_id: str) -> tuple[str, dict[str, Any]] |
         raw = row[1]
         if isinstance(raw, bytes):
             raw = raw.decode("utf-8")
-        parsed: dict[str, Any] = json.loads(raw)
-        return raw, parsed
+        parsed_obj = parse_canonical_json(raw)
+        if isinstance(parsed_obj, dict):
+            return raw, parsed_obj
+        return None
     except Exception:  # noqa: BLE001
         return None
 

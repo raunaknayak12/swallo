@@ -93,6 +93,12 @@ def run_send(argv: list[str]) -> int:
         help="Target adapter: claude-code | chat (default: claude-code).",
     )
     parser.add_argument(
+        "--format",
+        choices=["markdown"],
+        default="markdown",
+        help="Delivery output format (default: markdown).",
+    )
+    parser.add_argument(
         "--store",
         type=Path,
         default=None,
