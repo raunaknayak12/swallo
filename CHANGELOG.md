@@ -11,6 +11,9 @@ All notable changes to this project will be documented here. Format follows Keep
 
 ### Fixed
 - **status / list**: Decode SQLite `body` column BLOB bytes (`bytes` or `memoryview`) into UTF-8 text prior to canonical JSON parsing. Gracefully report corrupted rows as `<corrupt>` with warning output rather than crashing.
+- **staleness**: Decode SQLite BLOB bytes before canonical JSON parsing in `_lookup_packet`, preventing JSONDecodeError crashes (Bug 5).
+- **drafts / edit**: Aligned database queries with `packets` table schema, eliminating `sqlite3.OperationalError: no such column: session_id` runtime crashes on unapproved drafts (Bugs 6 & 7).
+- **staleness / approve**: Synchronized packet HMAC hashes in staleness verification with stored ledger records and added `--repo` flag to `swallo approve`.
 - **prompt**: Make Pydantic `Item` model the authoritative source of truth. Derive valid kinds (`decision`, `constraint`, `question`, `artifact_ref`) dynamically in prompt output; sample JSON now includes required `created_at` and `sources` fields.
 - **targets**: Normalize target names uniformly across `approve`, `send`, `show`, and `ledger`. Supported targets are determined dynamically from adapter registry (`claude-code`, `antigravity`, `chat`).
 - **approve**: Added helpful error messages for unknown delivery targets and set default target to `claude-code`.
