@@ -16,6 +16,7 @@ from pathlib import Path
 
 from swallo.config import get_store_dir
 from swallo.errors import UsageError, ValidationError
+from swallo.render.sanitize import sanitize_for_display
 from swallo.schema.canonical import parse_canonical_json
 from swallo.store.db import get_connection
 
@@ -128,14 +129,16 @@ def run_status(argv: list[str]) -> int:
             has_corrupt = True
             goal_text = "<corrupt>"
 
+        clean_goal = sanitize_for_display(goal_text)
+        clean_proj = sanitize_for_display(proj)
         results.append({
             "id": pkt_id,
             "hash": pkt_hash,
-            "project": proj,
+            "project": clean_proj,
             "state": "<corrupt>" if is_corrupt else state,
             "created_at": created_at,
             "items_count": item_count,
-            "goal": goal_text[:40] + ("..." if len(goal_text) > 40 else ""),
+            "goal": clean_goal[:40] + ("..." if len(clean_goal) > 40 else ""),
             "approved_targets": approved_map.get(pkt_hash, []),
         })
 
