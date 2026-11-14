@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from swallo.schema.canonical import canonicalize, derive_packet_id, packet_hash
 from swallo.server.mcp_server import SwalloService, create_mcp_server
 from swallo.store.db import apply_migrations, get_connection, get_or_create_local_key
@@ -112,6 +114,9 @@ def test_get_context_alias_and_mcp_registration(tmp_path: Path) -> None:
     assert "Decision for test" in res_get["content"]
 
     # Verify both verify_context and get_context exist on FastMCP
+    pytest.importorskip(
+        "mcp", reason="swallo[mcp] optional dependency required for FastMCP server registration"
+    )
     mcp_app = create_mcp_server(svc)
     tool_names = [tool.name for tool in mcp_app._tool_manager.list_tools()]
     assert "verify_context" in tool_names

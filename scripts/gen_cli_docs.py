@@ -5,6 +5,8 @@ Generate docs/CLI_REFERENCE.md from --help output of each swallo command.
 
 from __future__ import annotations
 
+import difflib
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -42,6 +44,8 @@ def generate_cli_reference() -> str:
         "",
     ]
 
+    env = {**os.environ, "COLUMNS": "80", "LINES": "24"}
+
     for cmd in COMMANDS:
         proc = subprocess.run(  # noqa: S603
             [sys.executable, "-m", "swallo", cmd, "--help"],
@@ -49,6 +53,7 @@ def generate_cli_reference() -> str:
             text=True,
             timeout=15,
             check=False,
+            env=env,
         )
         help_text = (proc.stdout or proc.stderr).strip()
         lines.append(f"## `swallo {cmd}`")
@@ -75,8 +80,17 @@ def main() -> int:
         existing = out_file.read_text(encoding="utf-8").replace("\r\n", "\n").strip()
         current = content.replace("\r\n", "\n").strip()
         if existing != current:
+            diff = "".join(
+                difflib.unified_diff(
+                    existing.splitlines(keepends=True),
+                    current.splitlines(keepends=True),
+                    fromfile="docs/CLI_REFERENCE.md",
+                    tofile="generated",
+                )
+            )
             print(
-                f"Error: {out_file} has drifted from CLI --help. Run 'python scripts/gen_cli_docs.py' to update.",
+                f"Error: {out_file} has drifted from CLI --help. Run 'python scripts/gen_cli_docs.py' to update.\n"
+                f"Diff:\n{diff}",
                 file=sys.stderr,
             )
             return 1
