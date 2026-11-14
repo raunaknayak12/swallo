@@ -110,7 +110,7 @@ options:
 ## `swallo approve`
 
 ```
-usage: swallo approve [-h] [--target TARGET] [--force] [--ack-stale]
+usage: swallo approve [-h] [--target TARGET] [--ack-stale]
                       [--accept-untrusted] [--passphrase PASSPHRASE]
                       [--store STORE] [--json]
                       packet_id
@@ -124,7 +124,6 @@ options:
   -h, --help            show this help message and exit
   --target TARGET, -t TARGET
                         Target IDE or agent adapter (default: claude-code).
-  --force, -f           Bypass interactive terminal confirmation.
   --ack-stale           Acknowledge repository staleness/drift and record
                         cryptographic acknowledgment.
   --accept-untrusted    Accept and approve an untrusted or externally imported

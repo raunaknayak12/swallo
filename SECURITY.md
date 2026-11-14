@@ -4,9 +4,9 @@
 
 Please do **not** open a public issue for security problems.
 
-- Report privately through the repository's private vulnerability reporting feature, or email the address listed here once chosen: `TODO-security-contact`.
+- Report privately through GitHub's Private Vulnerability Reporting on this repository (preferred), or email `raunakpython11@gmail.com`.
 - Include affected version, reproduction steps, and impact.
-- Expect an acknowledgement within a target time to be set by the maintainers (proposal: 7 days) and a fix timeline based on severity.
+- Expect an acknowledgement within 48 hours and a preliminary assessment within 7 days.
 
 ## Scope
 

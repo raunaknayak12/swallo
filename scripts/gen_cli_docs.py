@@ -67,6 +67,22 @@ def main() -> int:
     out_file = docs_dir / "CLI_REFERENCE.md"
 
     content = generate_cli_reference()
+
+    if "--check" in sys.argv:
+        if not out_file.exists():
+            print(f"Error: {out_file} does not exist.", file=sys.stderr)
+            return 1
+        existing = out_file.read_text(encoding="utf-8").replace("\r\n", "\n").strip()
+        current = content.replace("\r\n", "\n").strip()
+        if existing != current:
+            print(
+                f"Error: {out_file} has drifted from CLI --help. Run 'python scripts/gen_cli_docs.py' to update.",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"OK: {out_file} is in sync with CLI --help.")
+        return 0
+
     out_file.write_text(content, encoding="utf-8")
     print(f"Generated {out_file}")
     return 0
