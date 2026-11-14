@@ -10,10 +10,12 @@ from __future__ import annotations
 import json
 import re
 import typing
+from pathlib import Path
 
 import pytest
 
 from swallo.capture.prompt import generate_handoff_prompt
+from swallo.schema.canonical import parse_canonical_json
 from swallo.schema.models import Item, Packet
 
 # ---------------------------------------------------------------------------
@@ -44,7 +46,10 @@ def _extract_json_block(prompt_text: str) -> dict:
     match = re.search(r"```json\s*(\{.*?\})\s*```", prompt_text, re.DOTALL)
     if not match:
         raise ValueError("No JSON block found in prompt text")
-    return json.loads(match.group(1))
+    data = parse_canonical_json(match.group(1))
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected dict from JSON block, got {type(data)}")
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +105,23 @@ def test_prompt_sample_json_validates_against_packet_model() -> None:
             f"Sample JSON in prompt does not validate against Packet model: {exc}\n"
             f"Sample JSON: {json.dumps(sample, indent=2)}"
         )
+
+
+def test_prompt_sample_json_roundtrips_through_real_save(tmp_path: Path) -> None:
+    """Round-trip sample JSON from `swallo prompt` through real `swallo save`."""
+    from swallo.cli import main
+    store_dir = tmp_path / "roundtrip_store"
+    assert main(["init", "--store", str(store_dir), "--project", "HandoffApp"]) == 0
+
+    prompt_text = generate_handoff_prompt()
+    sample = _extract_json_block(prompt_text)
+
+    sample_file = tmp_path / "sample_packet.json"
+    sample_file.write_text(json.dumps(sample), encoding="utf-8")
+
+    # Real swallo save with --warn must succeed with exit code 0
+    save_code = main(["save", str(sample_file), "--store", str(store_dir), "--warn", "--json"])
+    assert save_code == 0
 
 
 def test_prompt_sample_json_has_required_fields() -> None:
