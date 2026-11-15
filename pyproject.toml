@@ -53,7 +53,7 @@ PyPI = "https://pypi.org/project/swallo/"
 
 [project.optional-dependencies]
 mcp = [
-    "mcp>=1.0.0,<2.0.0",
+    "mcp>=1.2.0,<2.0.0",
 ]
 tokens = [
     "tiktoken>=0.7.0",
