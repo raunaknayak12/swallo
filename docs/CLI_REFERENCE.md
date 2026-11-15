@@ -409,7 +409,7 @@ options:
 ## `swallo version`
 
 ```
-swallo 0.1.3
+swallo 0.1.4
 supported schema versions: 0.1
 python: <python_version>
 ```
