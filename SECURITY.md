@@ -1,33 +1,52 @@
 # Security Policy
 
-## Reporting a vulnerability
+## Supported Versions
 
-Please do **not** open a public issue for security problems.
+| Version | Supported |
+|---------|-----------|
+| 0.1.x (latest) | ✅ Active |
+| < 0.1.0 | ❌ No longer supported |
 
-- Report privately through GitHub's Private Vulnerability Reporting on this repository (preferred), or email `raunakpython11@gmail.com`.
-- Include affected version, reproduction steps, and impact.
-- Expect an acknowledgement within 48 hours, a preliminary assessment within 7 days, and targeted patch availability within 30 days.
-- Security advisories and CVE coordination are conducted via GitHub Security Advisories.
+Security fixes are released as patch updates on the latest `0.1.x` series. Older versions do not receive backported security patches.
 
-## Security remediation process
+## Reporting a Vulnerability
 
-1. **Triage:** Reports are confirmed locally against the latest minor release using synthetic test cases.
-2. **Patching:** Fixes are developed in private forks, verified against adversarial regressions, and reviewed by maintainers.
-3. **Publication:** Patches are published as a patch release to PyPI via Trusted Publishing. Public advisories are published with credited acknowledgments.
+**Please do not open a public GitHub Issue for security problems.**
+
+Use [GitHub private vulnerability reporting](https://github.com/raunaknayak12/swallo/security/advisories/new) (preferred): click "Report a vulnerability" to open a draft advisory visible only to maintainers. Alternatively, email `raunakpython11@gmail.com` with subject `[SECURITY] swallo <brief description>`.
+
+**Include in your report:**
+- Affected version(s) (`swallo --version`)
+- Steps to reproduce
+- Potential impact
+- Suggested fix (optional)
+
+## Response Timeline
+
+| Stage | Target |
+|-------|--------|
+| Initial acknowledgement | Within 72 hours |
+| Triage and severity assessment | Within 7 days |
+| Fix and patch release | Within 30 days (critical/high); 90 days (medium/low) |
+| Public disclosure | After fix is released or 90 days, whichever comes first |
 
 ## Scope
 
-In scope: the `swallo` package, its CLI, MCP server, importers, redaction, store, and release pipeline.
-Out of scope: vulnerabilities in third-party chat apps, IDEs or model providers, and attacks that require an already-compromised local machine.
+**In-scope:**
+- `swallo` package code under `src/swallo/` on the latest published PyPI release
+- Security invariants: TTY approval gate, MCP approve-tool absence, zero-network core, fences, redaction, ledger HMAC chain
+- Credential or secret leakage through the CLI, store, or MCP server
 
-## What this tool does not guarantee
+**Out-of-scope:**
+- Vulnerabilities in `swallo`'s optional dependencies (`mcp`, `cryptography`, `tiktoken`, `pydantic`) — report those upstream
+- Issues in development-only dependencies (`pytest`, `ruff`, `mypy`, etc.)
+- Attacks requiring physical access to the machine running `swallo`
+- Social engineering of the user who operates `swallo approve`
 
-- Redaction reduces secret exposure but cannot be proven complete.
-- Labelling and separating imported content reduces prompt-injection risk but does not eliminate it.
-- The tool cannot confirm that a receiving agent read or understood a packet.
+## Security Architecture Notes
 
-See `docs/Security.md` for the full threat model.
-
-## Supported versions
-
-Only the latest minor release receives security fixes during the 0.x series.
+- **Zero network egress**: The core runtime (`pip install swallo` without extras) makes no outbound network calls. Enforced by an AST-level test (`tests/test_zero_network.py`).
+- **TTY-required approval**: `swallo approve` requires an interactive terminal (TTY). Cannot be bypassed via CLI flags, environment variables, or the MCP server. No `--force` flag exists in production.
+- **No approve tool in MCP**: Per ADR-007, the MCP server exposes zero approval tools. Human review is strictly CLI-only.
+- **Redaction is best-effort**: The redaction engine catches many common secret patterns with decoded-variant scanning, but cannot guarantee detection of all custom or obfuscated secrets. Users must review packets before approval.
+- **v0.1, not independently audited**: This is an early release. It has not undergone a formal third-party security audit. CodeQL, Bandit, and pip-audit run on every CI build (see [CI badges](https://github.com/raunaknayak12/swallo#readme)).
