@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented here. Format follows Keep a Changelog; versioning follows SemVer. The packet `schema_version` is versioned separately (see `docs/PACKET_SCHEMA.md`).
 
+## [0.1.4] - 2026-11-15
+
+### Fixed
+- **packaging**: Raised `mcp` lower bound from `>=1.0.0` to `>=1.2.0`. The `mcp.server.fastmcp.FastMCP` class required by `swallo[mcp]` was introduced in `mcp` 1.2.0 and does not exist in 1.0.x or 1.1.x. The correct lower bound was verified by inspecting PyPI wheel contents for each version; evidence in `docs/qa/MCP_BOUNDS.md`.
+- **cli**: Refactored `main()` to route all subcommands through `_dispatch_subcommand()`. Added `pydantic.ValidationError` catch in `main()` so schema validation errors from Pydantic produce a clean `Error: Validation error: ...` message instead of a raw traceback to users.
+- **benchmarks**: Fixed flaky tamper-detection benchmark (`test_tamper_detection_evaluation`). The tamper mutation SQL was a no-op when the HMAC began with `"00"` (the leading-zero branch was not updated). Fixed by switching to a deterministic benchmark key (`hashlib.sha256(b"swallo-deterministic-benchmark-tamper-key").digest()`) and adding before/after row-change assertions to all 9 tamper mutations. Regression test `test_tamper_detection_mac_starting_with_00` added.
+
+### Added
+- **ci**: Tamper stress test workflow (`tamper-stress-test.yml`) pinned to `workflow_dispatch` only; runs 500-tamper + 200-iteration deterministic loop across Ubuntu/macOS/Windows.
+- **ci**: New-user validation workflow (`.github/workflows/new-user-validation.yml`) with `source` input (`wheel-artifact`/`testpypi`/`pypi`), version input, 3-OS × 3-Python matrix, and MCP bounds sub-job testing `mcp==1.2.0` and `mcp==1.9.4`.
+- **ci**: TestPyPI workflow updated to accept a `version` input (default `0.1.4.dev1`) for safe dry-run publishing without burning release versions.
+- **docs**: `SECURITY.md` updated with supported versions table, private vulnerability reporting link, response timeline, and "v0.1, not independently audited" statement.
+- **docs**: GitHub issue templates added for bug reports and feature requests.
+- **docs**: `docs/qa/MCP_BOUNDS.md` — evidence for empirically verified `mcp` version bounds.
+
+### CI
+- Dependabot configured to group `codeql-action` actions and defer `mcp` 2.x major updates (see `docs/DECISIONS.md`).
+- Tamper benchmark uses deterministic key; row-change preconditions verified in all 9 mutation tests.
+
 ## [0.1.3] - 2026-11-13
 
 ### Security
