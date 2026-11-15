@@ -1,14 +1,23 @@
 name: TestPyPI Publishing
 
+# Dry-run workflow: publishes a dev-versioned build to TestPyPI.
+# Use version input like "0.1.4.dev1" to avoid burning "0.1.4" on TestPyPI.
+# After publishing, manually trigger new-user-validation.yml with source=testpypi.
+
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Dev version to publish (e.g. 0.1.4.dev1). Do NOT use a release version."
+        required: true
+        default: "0.1.4.dev1"
 
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Build distribution packages
+    name: Build distribution packages (${{ inputs.version }})
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -22,13 +31,21 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install build twine
+          python -m pip install build twine hatch
+
+      - name: Override version for dev build
+        run: |
+          hatch version "${{ inputs.version }}"
+          echo "Building version: $(hatch version)"
 
       - name: Build sdist and wheel
         run: python -m build
 
       - name: Check package metadata with twine
         run: python -m twine check --strict dist/*
+
+      - name: Restore pyproject.toml version (do not commit dev version)
+        run: git checkout pyproject.toml src/swallo/__init__.py
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
@@ -60,3 +77,8 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist/
           attestations: true
+
+      - name: Post-publish reminder
+        run: |
+          echo "TestPyPI publish complete for ${{ inputs.version }}."
+          echo "Next: trigger new-user-validation.yml with source=testpypi, version=${{ inputs.version }}"
