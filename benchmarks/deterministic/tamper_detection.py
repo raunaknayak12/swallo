@@ -65,7 +65,15 @@ def evaluate_tamper_detection() -> dict[str, Any]:
         ("UPDATE approvals SET target = 'cursor'", "tampered_target"),
         ("UPDATE approvals SET approved_at = '2020-01-01T00:00:00Z'", "tampered_timestamp"),
         ("UPDATE approvals SET packet_hash = 'b' || substr(packet_hash, 2)", "tampered_hash"),
-        ("UPDATE approvals SET mac = '00' || substr(mac, 3)", "tampered_mac"),
+        # Mutate the first character of the MAC to guarantee alteration regardless of original value
+        (
+            (
+                "UPDATE approvals SET mac = "
+                "CASE WHEN substr(mac, 1, 1) = '0' THEN '1' || substr(mac, 2) "
+                "ELSE '0' || substr(mac, 2) END"
+            ),
+            "tampered_mac",
+        ),
     ]
 
     ledger_detected = 0
