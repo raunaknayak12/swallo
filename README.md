@@ -49,17 +49,17 @@ flowchart TD
 
 ## Installation
 
-`swallo` is available on PyPI ([pypi.org/project/swallo/](https://pypi.org/project/swallo/)) (`v0.1.3`). Requires Python >= 3.11.
+`swallo` is available on PyPI ([pypi.org/project/swallo/](https://pypi.org/project/swallo/)) (`v0.1.4`). Requires Python >= 3.11.
 
 ```bash
 # Install swallo from PyPI (zero third-party runtime dependencies beyond Pydantic)
-pip install swallo==0.1.3
+pip install swallo==0.1.4
 
 # With optional extras:
-pip install "swallo[mcp]==0.1.3"     # FastMCP server integration
-pip install "swallo[sign]==0.1.3"    # Ed25519 passphrase signing via cryptography
-pip install "swallo[tokens]==0.1.3"  # Token counting via tiktoken
-pip install "swallo[dev]==0.1.3"     # Development, testing, and benchmark suite
+pip install "swallo[mcp]==0.1.4"     # FastMCP server integration
+pip install "swallo[sign]==0.1.4"    # Ed25519 passphrase signing via cryptography
+pip install "swallo[tokens]==0.1.4"  # Token counting via tiktoken
+pip install "swallo[dev]==0.1.4"     # Development, testing, and benchmark suite
 ```
 
 ### Dependency Isolation Guarantee
@@ -223,13 +223,40 @@ Add to `.gemini/antigravity/mcp/swallo.json` or your MCP server configuration:
 
 ---
 
-## Security Model & Structural Invariants
+## Security Invariants & Audit Status
 
-1. **Two-File Delivery**: Chat-derived context is written to isolated data files under `.swallo/handoff/`, leaving only a short pointer stub in rules files.
-2. **Mandatory Interactive Approval**: Approval requires an interactive TTY. Agents cannot approve context.
-3. **Deterministic Content Addressing**: All packets and items are addressed by SHA-256 hashes of their canonical JSON representations.
-4. **Trojan Source Sanitization**: Bidirectional overrides, zero-width characters, and Unicode tag characters (CVE-2021-42574) are strictly stripped or neutralized.
-5. **Circuit Breaker**: 5 consecutive blocked saves trip the MCP circuit breaker, pausing agent activity until reset by the human operator.
+- **Status**: v0.1 release, not independently audited. Not a replacement for dedicated secret scanners or organizational credential management.
+- **Automated Scanning**: Clean CI runs with no open findings from CodeQL, Bandit (AST security linter), and pip-audit at release (2026-11-15).
+- **Zero-Network Runtime**: Core package strictly enforces zero outbound network egress.
+- **Mandatory Human Approval**: Approval requires an interactive controlling terminal (`CONIN$` or `/dev/tty`). The approval gate cannot be bypassed through MCP tools or CLI flags.
+- **Trojan Source Sanitization**: Bidirectional overrides, zero-width characters, and Unicode tag characters (CVE-2021-42574) are stripped or neutralized.
+
+---
+
+## Known Limitations
+
+- **Redaction Bounds**: The redaction engine scans decoded variants (base64, hex, rot13, URL) and high-entropy sequences, but cannot detect arbitrary custom steganography, non-standard cipher implementations, or secrets split across multiple discontinuous items. Always review context on terminal before approval.
+- **Semantic Prompt Injection**: Swallo fences delivered context with cryptographic nonces and immutable Markdown headers to instruct consuming agents to treat context as inert data. However, Swallo does not perform natural language prompt injection classification on payload text.
+- **High Entropy False Positives**: Long base64-encoded binary assets, image blobs, or cryptographic digests may trigger high-entropy redaction warnings. Use `--warn` mode or denylist exclusions in `config.toml` where appropriate.
+- **Windows Application Control**: On enterprise Windows systems enforcing strict Application Control or AppLocker policies, entrypoint `.exe` binaries may require administrative execution policy exemptions. In such environments, invoke Swallo via `python -m swallo` instead.
+- **Experimental Python Versions**: Python 3.11, 3.12, and 3.13 are fully tested and supported in production. Python 3.14 and 3.15 are tested experimentally in CI (`continue-on-error`).
+
+---
+
+## Troubleshooting
+
+- **Diagnose Store State**: Run `swallo doctor` to verify SQLite WAL mode, key permissions, workspace root registrations, and hash chain integrity.
+- **Uninitialized Store**: If subcommands report `Store at '...' is not initialized`, run `swallo init` to generate a local cryptographic key and database.
+- **Custom Store Directory**: Configure `SWALLO_HOME` (or `SWALLO_STORAGE_DIR`) in your shell environment to relocate the store outside default user directories.
+- **MCP Server Stdio Debugging**: Verify MCP server operation by running `python -m swallo mcp` in your terminal. For IDE integration, ensure the python interpreter running Swallo matches the environment with `swallo[mcp]` installed.
+
+---
+
+## Reporting Bugs & Vulnerabilities
+
+- **Bug Reports**: Open an issue using our [Bug Report Template](https://github.com/raunaknayak12/swallo/issues/new?template=bug_report.md).
+- **Feature Requests**: Suggest enhancements via our [Feature Request Template](https://github.com/raunaknayak12/swallo/issues/new?template=feature_request.md).
+- **Security Vulnerabilities**: Please do **not** report security vulnerabilities in public issues. Report privately via [GitHub Private Vulnerability Reporting](https://github.com/raunaknayak12/swallo/security/advisories/new) or refer to [SECURITY.md](SECURITY.md) for our responsible disclosure policy and timeline.
 
 ---
 

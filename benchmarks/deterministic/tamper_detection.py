@@ -9,7 +9,7 @@ Per ADR-003, ADR-008, TRD.md section 5.1, and Security.md F10:
 
 from __future__ import annotations
 
-import secrets
+import hashlib
 import sqlite3
 from typing import Any
 
@@ -20,7 +20,8 @@ def evaluate_tamper_detection() -> dict[str, Any]:
     """Execute row/column mutation tests across events and approvals."""
     conn = sqlite3.connect(":memory:")
     db.apply_migrations(conn)
-    key = secrets.token_bytes(32)
+    # Use deterministic key for repeatable benchmark evaluation
+    key = hashlib.sha256(b"swallo-deterministic-benchmark-tamper-key").digest()
 
     # 1. Populate valid baseline events
     eventlog.append(conn, key, type="packet_saved", packet_hash="hash1", detail="save 1")
@@ -45,9 +46,17 @@ def evaluate_tamper_detection() -> dict[str, Any]:
         # Clone db for isolated test via SQLite backup
         test_conn = sqlite3.connect(":memory:")
         conn.backup(test_conn)
+        rows_before = test_conn.execute(
+            "SELECT seq, type, detail, prev_mac, mac FROM events ORDER BY seq"
+        ).fetchall()
         # Apply mutation
         test_conn.execute(sql)
         test_conn.commit()
+        rows_after = test_conn.execute(
+            "SELECT seq, type, detail, prev_mac, mac FROM events ORDER BY seq"
+        ).fetchall()
+        assert rows_before != rows_after, f"Event tamper mutation '{_name}' ({sql}) was a no-op!"
+
         errs = eventlog.verify(test_conn, key)
         if len(errs) > 0:
             event_detected += 1
@@ -80,8 +89,16 @@ def evaluate_tamper_detection() -> dict[str, Any]:
     for sql, _name in ledger_tamper_tests:
         test_conn = sqlite3.connect(":memory:")
         conn.backup(test_conn)
+        rows_before = test_conn.execute(
+            "SELECT packet_hash, target, approved_at, mac FROM approvals"
+        ).fetchall()
         test_conn.execute(sql)
         test_conn.commit()
+        rows_after = test_conn.execute(
+            "SELECT packet_hash, target, approved_at, mac FROM approvals"
+        ).fetchall()
+        assert rows_before != rows_after, f"Ledger tamper mutation '{_name}' ({sql}) was a no-op!"
+
         # Should now be NOT approved
         approved = ledger.is_approved(test_conn, key, pkt_hash, target)
         if not approved:

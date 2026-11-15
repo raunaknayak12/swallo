@@ -11,9 +11,11 @@ import json
 import platform
 import sys
 
+import pydantic
+
 from swallo import __version__
 from swallo.config import check_unknown_env_vars
-from swallo.errors import UsageError
+from swallo.errors import SwalloError, UsageError, ValidationError
 
 SUPPORTED_SCHEMA_VERSIONS = ["0.1"]
 KNOWN_COMMANDS = [
@@ -62,75 +64,11 @@ def _run_version(as_json: bool) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    if argv is None:
-        argv = sys.argv[1:]
+def _dispatch_subcommand(subcommand: str, sub_args: list[str]) -> int:
+    """Route subcommand to its handler.
 
-    # Ensure UTF-8 output on Windows consoles/pipes with fallback for unencodable chars
-    if hasattr(sys.stdout, "reconfigure"):
-        with contextlib.suppress(Exception):
-            sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
-    if hasattr(sys.stderr, "reconfigure"):
-        with contextlib.suppress(Exception):
-            sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
-
-    check_unknown_env_vars()
-
-    # Quick check for version flag
-    if "--version" in argv or "-V" in argv:
-        return _run_version(as_json="--json" in argv)
-
-    parser = argparse.ArgumentParser(
-        prog="swallo",
-        description="Portable, reviewable handoff between any chat agent and any IDE.",
-        add_help=False,
-    )
-    parser.add_argument("-h", "--help", action="store_true", help="Show help overview and exit.")
-    parser.add_argument("-V", "--version", action="store_true", help="Show version and exit.")
-    parser.add_argument("--json", action="store_true", help="Machine-readable JSON output.")
-    parser.add_argument("subcommand", nargs="?", help="Subcommand to execute.")
-    parser.add_argument(
-        "subcommand_args",
-        nargs=argparse.REMAINDER,
-        help="Arguments for subcommand.",
-    )
-
-    args, extra = parser.parse_known_args(argv)
-
-    if args.version:
-        return _run_version(as_json=args.json)
-
-    if args.subcommand is None:
-        if args.help:
-            print("Usage: swallo <command> [options]\n")
-            print("Commands:")
-            for cmd in KNOWN_COMMANDS:
-                print(f"  {cmd}")
-            print("\nUse 'swallo help [command]' for more details.")
-            return 0
-        print(
-            "Usage: swallo <command> [options]\nRun 'swallo help' or 'swallo --help' for details.",
-            file=sys.stderr,
-        )
-        return 0
-
-    subcommand = args.subcommand.lower()
-
-    if subcommand == "version":
-        as_json = args.json or ("--json" in (args.subcommand_args or []))
-        return _run_version(as_json=as_json)
-
-    if subcommand == "help":
-        print("Usage: swallo <command> [options]\n")
-        print("Available commands:")
-        for cmd in sorted(KNOWN_COMMANDS):
-            print(f"  {cmd}")
-        return 0
-
-    sub_args = list(args.subcommand_args or [])
-    if args.json and "--json" not in sub_args:
-        sub_args.append("--json")
-
+    Raises SwalloError or pydantic.ValidationError on failure.
+    """
     if subcommand == "init":
         from swallo.commands.init import run_init
 
@@ -240,9 +178,95 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: {msg}", file=sys.stderr)
         return UsageError.exit_code
 
-    # For commands not yet implemented in Steps 0-2
+    # For commands not yet implemented
     print(f"Command '{subcommand}' is planned but not implemented in this build.", file=sys.stderr)
     return 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    # Ensure UTF-8 output on Windows consoles/pipes with fallback for unencodable chars
+    if hasattr(sys.stdout, "reconfigure"):
+        with contextlib.suppress(Exception):
+            sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+    if hasattr(sys.stderr, "reconfigure"):
+        with contextlib.suppress(Exception):
+            sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+
+    check_unknown_env_vars()
+
+    # Quick check for version flag
+    if "--version" in argv or "-V" in argv:
+        return _run_version(as_json="--json" in argv)
+
+    parser = argparse.ArgumentParser(
+        prog="swallo",
+        description="Portable, reviewable handoff between any chat agent and any IDE.",
+        add_help=False,
+    )
+    parser.add_argument("-h", "--help", action="store_true", help="Show help overview and exit.")
+    parser.add_argument("-V", "--version", action="store_true", help="Show version and exit.")
+    parser.add_argument("--json", action="store_true", help="Machine-readable JSON output.")
+    parser.add_argument("subcommand", nargs="?", help="Subcommand to execute.")
+    parser.add_argument(
+        "subcommand_args",
+        nargs=argparse.REMAINDER,
+        help="Arguments for subcommand.",
+    )
+
+    args, extra = parser.parse_known_args(argv)
+
+    if args.version:
+        return _run_version(as_json=args.json)
+
+    if args.subcommand is None:
+        if args.help:
+            print("Usage: swallo <command> [options]\n")
+            print("Commands:")
+            for cmd in KNOWN_COMMANDS:
+                print(f"  {cmd}")
+            print("\nUse 'swallo help [command]' for more details.")
+            return 0
+        print(
+            "Usage: swallo <command> [options]\nRun 'swallo help' or 'swallo --help' for details.",
+            file=sys.stderr,
+        )
+        return 0
+
+    subcommand = args.subcommand.lower()
+
+    if subcommand == "version":
+        as_json = args.json or ("--json" in (args.subcommand_args or []))
+        return _run_version(as_json=as_json)
+
+    if subcommand == "help":
+        print("Usage: swallo <command> [options]\n")
+        print("Available commands:")
+        for cmd in sorted(KNOWN_COMMANDS):
+            print(f"  {cmd}")
+        return 0
+
+    sub_args = list(args.subcommand_args or [])
+    if args.json and "--json" not in sub_args:
+        sub_args.append("--json")
+
+    try:
+        return _dispatch_subcommand(subcommand, sub_args)
+    except SwalloError as err:
+        if subcommand == "approve":
+            raise
+        print(f"Error: {err}", file=sys.stderr)
+        return err.exit_code
+    except pydantic.ValidationError as err:
+        error_msgs = []
+        for e in err.errors():
+            loc = " -> ".join(str(x) for x in e["loc"])
+            error_msgs.append(f"Field '{loc}': {e['msg']}")
+        msg = f"Validation error: {'; '.join(error_msgs)}"
+        print(f"Error: {msg}", file=sys.stderr)
+        return ValidationError.exit_code
 
 
 if __name__ == "__main__":

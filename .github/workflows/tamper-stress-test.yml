@@ -2,14 +2,6 @@ name: Tamper Detection Stress Test
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - fix/tamper-mutation-deterministic
-  pull_request:
-    paths:
-      - 'benchmarks/deterministic/tamper_detection.py'
-      - 'scripts/run_tamper_stress.py'
-      - '.github/workflows/tamper-stress-test.yml'
 
 permissions:
   contents: read
@@ -45,6 +37,9 @@ jobs:
 
       - name: Run 500-iteration tamper detection stress test
         run: python scripts/run_tamper_stress.py
+
+      - name: Run 200-iteration deterministic benchmark suite stress test
+        run: python scripts/run_deterministic_stress.py
 
       - name: Run deterministic test suite via pytest
         run: python -m pytest tests/test_deterministic_benchmarks.py -v

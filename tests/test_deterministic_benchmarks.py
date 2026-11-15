@@ -4,6 +4,7 @@ Unit and integration tests for Phase 2 Deterministic Correctness Benchmarks.
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 from benchmarks.deterministic.corpus import evaluate_corpus_redaction
@@ -15,6 +16,7 @@ from benchmarks.deterministic.sanitizer import evaluate_sanitizer
 from benchmarks.deterministic.tamper_detection import evaluate_tamper_detection
 from benchmarks.deterministic.variants import evaluate_decoded_variants
 from swallo.bench.verify import verify_bench_results
+from swallo.store import db, ledger
 
 
 def test_corpus_redaction_evaluation() -> None:
@@ -80,6 +82,60 @@ def test_tamper_detection_evaluation() -> None:
     assert res["overall_tamper_detection_rate"] == 1.0
     assert res["event_log_tamper_detection_rate"] == 1.0
     assert res["ledger_tamper_detection_rate"] == 1.0
+
+
+def test_tamper_detection_mac_starting_with_00() -> None:
+    """
+    Regression test for flaky tamper detection bug.
+
+    When HMAC starts with '00', a naive mutation like `mac = '00' || substr(mac, 3)`
+    is a silent no-op. The deterministic bit-flip ensures the row is altered,
+    asserts before/after row change, and verifies ledger detects the tamper.
+    """
+    conn = sqlite3.connect(":memory:")
+    db.apply_migrations(conn)
+
+    # Key index 209 produces HMAC-SHA256 starting with '00' for this payload
+    key = (209).to_bytes(32, "big")
+    pkt_hash = "a" * 64
+    target = "antigravity"
+    ts = "2026-11-15T00:00:00Z"
+
+    ledger.approve(conn, key, pkt_hash, target, ts=ts)
+    row = conn.execute(
+        "SELECT mac FROM approvals WHERE packet_hash = ?", (pkt_hash,)
+    ).fetchone()
+    assert row is not None
+    original_mac = row[0]
+    assert original_mac.startswith("00"), f"Expected MAC starting with '00', got {original_mac}"
+    assert ledger.is_approved(conn, key, pkt_hash, target) is True
+
+    # Check that the old buggy SQL would have been a silent no-op
+    buggy_mutated_mac = "00" + original_mac[2:]
+    assert (
+        buggy_mutated_mac == original_mac
+    ), "Expected buggy SQL to be a silent no-op on '00' prefix"
+
+    # Now apply the robust bit-flip mutation
+    mutation_sql = (
+        "UPDATE approvals SET mac = "
+        "CASE WHEN substr(mac, 1, 1) = '0' THEN '1' || substr(mac, 2) "
+        "ELSE '0' || substr(mac, 2) END"
+    )
+    rows_before = conn.execute(
+        "SELECT packet_hash, target, approved_at, mac FROM approvals"
+    ).fetchall()
+    conn.execute(mutation_sql)
+    conn.commit()
+    rows_after = conn.execute(
+        "SELECT packet_hash, target, approved_at, mac FROM approvals"
+    ).fetchall()
+
+    # Precondition assertion: the row MUST have changed
+    assert rows_before != rows_after, "Mutation was an undetected no-op"
+
+    # Ledger MUST detect tampering
+    assert ledger.is_approved(conn, key, pkt_hash, target) is False
 
 
 def test_security_invariants_evaluation() -> None:

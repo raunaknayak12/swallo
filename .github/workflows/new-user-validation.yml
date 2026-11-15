@@ -1,0 +1,167 @@
+name: New-User Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Package source to install from"
+        required: true
+        default: "pypi"
+        type: choice
+        options:
+          - wheel-artifact
+          - testpypi
+          - pypi
+      version:
+        description: "Package version to install (e.g. 0.1.4 or 0.1.4.dev1)"
+        required: true
+        default: "0.1.4"
+
+# NOTE: CI uses a test-harness helper for the approve step (no interactive TTY on runners).
+# Real interactive TTY coverage is provided by maintainer manual test on a Windows laptop.
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+        include:
+          # Python 3.14 and 3.15 are experimental
+          - os: ubuntu-latest
+            python-version: "3.14"
+            experimental: true
+          - os: ubuntu-latest
+            python-version: "3.15"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental == true }}
+
+    steps:
+      - name: Check out repository (for validation script only)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          sparse-checkout: scripts/validate_new_user.py
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+
+      - name: Download wheel artifact
+        if: inputs.source == 'wheel-artifact'
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Install swallo (core) from wheel artifact
+        if: inputs.source == 'wheel-artifact'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install dist/swallo-${{ inputs.version }}-py3-none-any.whl
+
+      - name: Install swallo (core) from TestPyPI
+        if: inputs.source == 'testpypi'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            --pre \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "swallo==${{ inputs.version }}"
+
+      - name: Install swallo (core) from PyPI
+        if: inputs.source == 'pypi'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "swallo==${{ inputs.version }}"
+
+      - name: Run new-user validation (core install)
+        run: python scripts/validate_new_user.py
+
+      - name: Install swallo[mcp] extra
+        if: inputs.source == 'wheel-artifact'
+        run: |
+          python -m pip install "dist/swallo-${{ inputs.version }}-py3-none-any.whl[mcp]"
+
+      - name: Install swallo[mcp] from TestPyPI
+        if: inputs.source == 'testpypi'
+        run: |
+          python -m pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "swallo[${{ inputs.version }}][mcp]" || \
+          python -m pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "swallo==${{ inputs.version }}" "mcp>=1.2.0,<2.0.0"
+
+      - name: Install swallo[mcp] from PyPI
+        if: inputs.source == 'pypi'
+        run: python -m pip install "swallo[${{ inputs.version }}][mcp]" || python -m pip install "swallo==${{ inputs.version }}" "mcp>=1.2.0,<2.0.0"
+
+      - name: Run new-user validation (with MCP extra)
+        run: python scripts/validate_new_user.py
+
+  mcp-bounds:
+    name: MCP bounds (${{ matrix.mcp-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mcp-version: ["1.2.0", "1.9.4"]  # lowest supported, latest <2.0.0
+
+    steps:
+      - name: Check out repository (for validation script only)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          sparse-checkout: scripts/validate_new_user.py
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+
+      - name: Download wheel artifact
+        if: inputs.source == 'wheel-artifact'
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Install swallo core + pinned mcp version
+        run: |
+          python -m pip install --upgrade pip
+          if [ "${{ inputs.source }}" = "wheel-artifact" ]; then
+            python -m pip install dist/swallo-${{ inputs.version }}-py3-none-any.whl
+          elif [ "${{ inputs.source }}" = "testpypi" ]; then
+            python -m pip install \
+              --index-url https://test.pypi.org/simple/ \
+              --extra-index-url https://pypi.org/simple/ \
+              "swallo==${{ inputs.version }}"
+          else
+            python -m pip install "swallo==${{ inputs.version }}"
+          fi
+          python -m pip install "mcp==${{ matrix.mcp-version }}"
+
+      - name: Verify FastMCP import and MCP invariants
+        run: |
+          python -c "
+          from mcp.server.fastmcp import FastMCP
+          from swallo.server.mcp_server import SwalloService, create_mcp_server
+          server = create_mcp_server()
+          assert server is not None, 'create_mcp_server() returned None'
+          methods = [m for m in dir(SwalloService) if not m.startswith('_') and callable(getattr(SwalloService, m))]
+          approve_tools = [m for m in methods if 'approve' in m.lower()]
+          assert not approve_tools, f'Approve tool exposed in MCP: {approve_tools}'
+          print(f'MCP bounds OK: mcp==${{ matrix.mcp-version }} - FastMCP loaded, zero approve tools.')
+          "
