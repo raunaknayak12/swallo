@@ -8,6 +8,9 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    ignore:
+      - dependency-name: "mcp"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -17,4 +20,11 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action/*"
+      github-actions:
+        patterns:
+          - "*"
 

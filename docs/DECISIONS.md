@@ -179,6 +179,8 @@ The following capabilities are explicitly deferred to v0.2 and are out of scope 
 2. **Conflict-Detector Plugin API:**
    - *Status:* Deferred candidate for v0.2.
    - *Threat Model Note:* Requires an updated threat model to ensure external model-assisted or third-party plugin execution cannot introduce unverified code execution, network egress, or bypass redaction guarantees.
+3. **Migration to MCP SDK 2.x:**
+   - *Status:* Deferred candidate for v0.2. Swallo v0.1 targets MCP SDK v1.x (`>=1.2.0,<2.0.0`) to avoid breaking API churn (`FastMCP` class renames). Migrating to MCP 2.x (`MCPServer`) is scheduled for v0.2.
 
 ## M6 & M7 Evaluation Pilot Designs
 
