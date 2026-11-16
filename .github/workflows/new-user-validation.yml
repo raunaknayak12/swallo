@@ -160,14 +160,13 @@ jobs:
       - name: Verify FastMCP import and MCP invariants
         run: |
           python -c "
-          import tempfile
+          import subprocess, tempfile
           from pathlib import Path
           from mcp.server.fastmcp import FastMCP
           from swallo.server.mcp_server import SwalloService, create_mcp_server
-          from swallo.store.db import init_store
-          td = Path(tempfile.mkdtemp())
-          init_store(td / 'swallo.db', td / 'key')
-          svc = SwalloService(store_dir=td)
+          td = tempfile.mkdtemp()
+          subprocess.run(['python', '-m', 'swallo', 'init', '--store', td], check=True)
+          svc = SwalloService(store_dir=Path(td))
           server = create_mcp_server(service=svc)
           assert server is not None, 'create_mcp_server() returned None'
           methods = [m for m in dir(SwalloService) if not m.startswith('_') and callable(getattr(SwalloService, m))]
