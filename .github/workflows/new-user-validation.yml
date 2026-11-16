@@ -98,7 +98,7 @@ jobs:
           python -m pip install \
             --index-url https://test.pypi.org/simple/ \
             --extra-index-url https://pypi.org/simple/ \
-            "swallo[${{ inputs.version }}][mcp]" || \
+            "swallo[mcp]==${{ inputs.version }}" || \
           python -m pip install \
             --index-url https://test.pypi.org/simple/ \
             --extra-index-url https://pypi.org/simple/ \
@@ -106,7 +106,7 @@ jobs:
 
       - name: Install swallo[mcp] from PyPI
         if: inputs.source == 'pypi'
-        run: python -m pip install "swallo[${{ inputs.version }}][mcp]" || python -m pip install "swallo==${{ inputs.version }}" "mcp>=1.2.0,<2.0.0"
+        run: python -m pip install "swallo[mcp]==${{ inputs.version }}"
 
       - name: Run new-user validation (with MCP extra)
         run: python scripts/validate_new_user.py
@@ -117,7 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mcp-version: ["1.2.0", "1.9.4"]  # lowest supported, latest <2.0.0
+        mcp-version: ["1.2.0", "1.30.0"]  # lowest supported v1.x (with pydantic<2.14), highest v1.x
 
     steps:
       - name: Check out repository (for validation script only)
@@ -151,14 +151,24 @@ jobs:
           else
             python -m pip install "swallo==${{ inputs.version }}"
           fi
-          python -m pip install "mcp==${{ matrix.mcp-version }}"
+          if [ "${{ matrix.mcp-version }}" = "1.2.0" ]; then
+            python -m pip install "mcp==1.2.0" "pydantic<2.14"
+          else
+            python -m pip install "mcp==${{ matrix.mcp-version }}"
+          fi
 
       - name: Verify FastMCP import and MCP invariants
         run: |
           python -c "
+          import tempfile
+          from pathlib import Path
           from mcp.server.fastmcp import FastMCP
           from swallo.server.mcp_server import SwalloService, create_mcp_server
-          server = create_mcp_server()
+          from swallo.store.db import init_store
+          td = Path(tempfile.mkdtemp())
+          init_store(td / 'swallo.db', td / 'key')
+          svc = SwalloService(store_dir=td)
+          server = create_mcp_server(service=svc)
           assert server is not None, 'create_mcp_server() returned None'
           methods = [m for m in dir(SwalloService) if not m.startswith('_') and callable(getattr(SwalloService, m))]
           approve_tools = [m for m in methods if 'approve' in m.lower()]
