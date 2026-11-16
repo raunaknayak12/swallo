@@ -252,7 +252,7 @@ def test_actionable_errors(temp_dir: Path) -> None:
     print("  -> Actionable error handling PASSED")
 
 
-def test_mcp_fastmcp_and_invariants() -> None:
+def test_mcp_fastmcp_and_invariants(temp_dir: Path) -> None:
     print("Testing FastMCP integration and MCP invariants...")
     try:
         from mcp.server.fastmcp import FastMCP
@@ -264,7 +264,13 @@ def test_mcp_fastmcp_and_invariants() -> None:
         print(f"MCP extra not installed or failed to import FastMCP: {e}")
         return
 
-    server = create_mcp_server()
+    mcp_store = temp_dir / ".swallo_mcp_home"
+    env = os.environ.copy()
+    env["SWALLO_HOME"] = str(mcp_store)
+    run_cmd(["swallo", "init"], env=env)
+
+    service = SwalloService(store_dir=mcp_store)
+    server = create_mcp_server(service=service)
     assert server is not None
 
     service_methods = [
@@ -284,7 +290,7 @@ def main() -> int:
         test_golden_path_and_lifecycle(temp_dir)
         test_upgrade_path(temp_dir)
         test_actionable_errors(temp_dir)
-        test_mcp_fastmcp_and_invariants()
+        test_mcp_fastmcp_and_invariants(temp_dir)
         print("\nAll new-user validation checks completed successfully!")
         return 0
     finally:
