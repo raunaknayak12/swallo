@@ -81,17 +81,42 @@ Swallo is a zero-network, local-first context transfer bridge designed to exchan
 - Cryptographic staleness acknowledgments (`stale_acks` table): stores HMAC-authenticated drift acknowledgments with expiring TTLs.
 
 ### 2.7 FastMCP Server (`swallo.server`)
-- Stdio-based Model Context Protocol (MCP) server for direct agent integration.
+- Stdio-based Model Context Protocol (MCP) server for direct agent integration (`swallo mcp serve`).
+- Requires `mcp>=1.2.0,<2.0.0` (FastMCP architecture support); decoupling early MCP SDK versions from Pydantic 2.14+ deprecations.
 - Exactly 7 safe tools registered: `save_context`, `load_context`, `get_context`, `verify_context`, `merge_contexts`, `diff`, `list_contexts`.
+- Isolated store execution: `SwalloService(store_dir=...)` supports multi-session and test isolation via `python -m swallo init --store <dir>`.
 - Approval enforcement: `load_context` and `get_context` reject unapproved packets.
-- Rate limiting: token-bucket rate limiter per session.
-- Circuit breaker: pauses agent sessions exceeding repeated policy violations.
+- Rate limiting: token-bucket rate limiter per session (capacity: 10, leak rate: 1/sec).
+- Circuit breaker: trips after 5 consecutive redaction blocks, locking agent writes until manually reset with `swallo breaker --reset`.
+
+### 2.8 CLI Subcommand Dispatcher (`swallo.cli`)
+- Unified dispatcher (`_dispatch_subcommand`) controlling all 23 CLI subcommands.
+- Intercepts `pydantic.ValidationError` and `UsageError` to print clear, formatted diagnostics without exposing Python tracebacks.
+- Guarantees strict exit codes (0 = success, 1 = operational failure, 2 = usage error).
+
+### 2.9 Deterministic Benchmark Engine (`swallo.benchmarks`)
+- Pre-registered benchmark suites verifying redaction recall, HMAC verification throughput, and tamper detection.
+- Guaranteed mutation preconditions: tamper tests XOR the first byte (`mac[0] ^ 0xFF`) and assert `row_before != row_after` to eliminate stochastic no-op flakes.
 
 ---
 
 ## 3. Security Invariants
 
-1. **Zero Network Core:** Swallo's core package imports zero networking libraries (`socket`, `urllib.request`, `requests`, `httpx`). All operations are local to the machine.
-2. **Mandatory Human-in-the-Loop Approval:** No agent can deliver or load context without interactive TTY confirmation from the human developer.
-3. **Immutability of Packets:** Packets are content-addressed and cryptographically hashed; modifying packet contents changes the hash and invalidates approvals.
-4. **Tamper-Evident Auditability:** Every write, approval, and delivery is recorded in an append-only HMAC chain verified by `swallo log --verify` and `swallo doctor`.
+1. **Zero-Network Core Runtime:** Swallo's core package imports zero networking libraries (`socket`, `urllib.request`, `requests`, `httpx`, `aiohttp`). All operations are local to the machine.
+2. **Mandatory Human-in-the-Loop Approval:** No agent can deliver or load context without interactive TTY confirmation from the human developer. Production CLI contains zero non-interactive approval bypasses (`--force` / `-f`).
+3. **Zero Approval Tools in MCP:** The MCP server exposes tools to draft, diff, and inspect context, but strictly omits any approval capability.
+4. **Immutability of Packets:** Packets are content-addressed and cryptographically hashed (`pkt_<12hex>`); modifying packet contents changes the hash and immediately invalidates approvals.
+5. **Tamper-Evident Auditability:** Every write, approval, and delivery is recorded in an append-only HMAC SHA-256 chain verified by `swallo log --verify` and `swallo doctor`.
+6. **Two-File Nonce Delivery & Sanitization:** Context is delivered to `.swallo/handoff/<packet-id>.md` bounded by CSPRNG nonce comments, while IDE instruction files only reference the handoff file. ANSI escapes, Trojan Source bidi characters (`\u202e`, `\u2066`), and zero-width spaces are stripped before display.
+7. **Circuit Breaker & Quota Defenses:** Protects against aggressive or compromised agents through token-bucket rate limiting, a 50-draft unapproved packet quota, and an automatic circuit breaker locking writes after 5 consecutive redaction blocks.
+
+---
+
+## 4. IDE Target Integration Map
+
+| Target IDE | Instruction Stub File | Marker Block Syntax | Handoff Data File |
+|:---|:---|:---|:---|
+| **Claude Code** | `CLAUDE.md` | `<!-- swallo:begin <nonce> -->` ... `<!-- swallo:end -->` | `.swallo/handoff/<pkt-id>.md` |
+| **Cursor** | `.cursorrules` | `<!-- swallo:begin <nonce> -->` ... `<!-- swallo:end -->` | `.swallo/handoff/<pkt-id>.md` |
+| **Antigravity** | `.agents/AGENTS.md` | `<!-- swallo:begin <nonce> -->` ... `<!-- swallo:end -->` | `.swallo/handoff/<pkt-id>.md` |
+

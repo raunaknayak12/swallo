@@ -213,20 +213,41 @@ The following capabilities are explicitly deferred to v0.2 and are out of scope 
 | Core-only CI job green (no extras installed) | **PASS** | Isolated fresh venv import emits 0 warnings; zero optional modules imported. |
 | `swallo doctor` passes on clean environment | **PASS** | Verified after `swallo init`. |
 | Docs match behavior; changelog updated | **PASS** | README updated with 23 CLI commands, exit codes, architecture, MCP guide; CHANGELOG updated. |
-| TestPyPI install & smoke test | **pending manual step** | Local wheel smoke test passed in isolated venv; remote upload and multi-OS smoke test pending maintainer manual execution. |
-| Name availability confirmed | **pending manual step** | PyPI and TestPyPI availability verified (ADR-032); final reservation upload pending maintainer manual execution. |
+| TestPyPI install & smoke test | **PASS** | Verified in CI run 43745305164 with swallo==0.1.4.dev1 via OIDC. |
+| Name availability confirmed | **PASS** | Verified and published to real PyPI as swallo==0.1.4. |
 
-## ADR-033: Elimination of Non-Interactive TTY Bypass in Production
+## ADR-034: Elimination of Non-Interactive TTY Bypass in Production
 - **Context:** Testing shortcuts (e.g. `--force` / `-f` flag) could allow an autonomous agent or script executing in non-interactive environments to bypass human approval gates.
 - **Decision:** Completely eliminate `--force` / `-f` flags and test bypass parameters from the production CLI in the shipped wheel. Approval strictly requires a verified interactive TTY. Test suites simulate terminal interaction via explicit test harness monkeypatches that are never shipped.
 - **Consequences:** Autonomous agents with shell access cannot approve packets programmatically; security invariant F18 strictly holds.
 - **Status:** Accepted (Implemented in v0.1.3).
 
-## ADR-034: Supply-Chain Hardening & Trusted Publishing (OIDC)
+## ADR-035: Supply-Chain Hardening & Trusted Publishing (OIDC)
 - **Context:** Secure open-source releases require cryptographic build provenance and defense against credential theft.
 - **Decision:** Mandate GitHub Actions Trusted Publishing (OIDC) for all PyPI and TestPyPI releases. Enforce SHA-pinned workflow actions, least-privilege token permissions, pre-release tag version synchronization against `pyproject.toml` and `CHANGELOG.md`, and automated OpenSSF Scorecard analysis. Manual uploads via API tokens or Twine are forbidden.
 - **Consequences:** Releases are fully reproducible, tamper-evident, and auditable.
 - **Status:** Accepted (Implemented in v0.1.3).
+
+## ADR-036: FastMCP SDK Compatibility Bounds & Pydantic Decoupling
+- **Context:** In early v0.1 releases, `mcp>=0.9.0` was specified, but `FastMCP` wasn't introduced until `mcp==1.2.0`. Furthermore, `mcp<1.22.0` imported `eval_type_backport` from private Pydantic internals, which was removed in `pydantic>=2.14`.
+- **Decision:** 
+  1. Set production package dependency to `mcp>=1.2.0,<2.0.0` in `pyproject.toml`.
+  2. Pin `pydantic<2.14` exclusively in test harnesses when validating legacy lower bound `mcp==1.2.0`.
+  3. Defer MCP SDK 2.x migration (`MCPServer`) to Swallo v0.2 to avoid upstream breaking changes at v0.1 launch.
+- **Consequences:** Clean resolution for modern Pydantic users with `mcp>=1.22.0`, while maintaining strict automated validation for the declared lower bound.
+- **Status:** Accepted (Implemented in v0.1.4).
+
+## ADR-037: Deterministic Benchmark Mutation Preconditions
+- **Context:** Benchmark tamper simulations previously mutated MAC values via string concatenation (`'00' || substr(mac,3)`), creating a ~1/256 flake probability when a random MAC began with `"00"`.
+- **Decision:** All tamper mutations must apply bitwise alterations (e.g. XOR with `0xFF` on the initial byte) that are mathematically guaranteed to modify the record. Furthermore, every tamper mutation in the test harness must assert `assert row_before != row_after` to ensure no-op mutations fail loudly before evaluating tamper detection.
+- **Consequences:** Eliminates stochastic benchmark flakes; validated across 500 local runs and 200 multi-OS CI loop iterations with zero failures.
+- **Status:** Accepted (Implemented in v0.1.4).
+
+## ADR-038: Isolated Store Service Model for Programmatic & Multi-Session Execution
+- **Context:** Testing and multi-agent IDE sessions can suffer from state pollution if defaulting to the user's primary storage (`%LOCALAPPDATA%\swallo` or `~/.local/share/swallo`).
+- **Decision:** Ensure `SwalloService` accepts an explicit `store_dir: Path` override and that all programmatic integrations, test suites, and subagent validations initialize dedicated isolated stores via `python -m swallo init --store <dir>`.
+- **Consequences:** Prevents cross-session state corruption and guarantees test reproducibility without touching developer data.
+- **Status:** Accepted (Implemented in v0.1.4).
 
 ## Pending decisions
 - Antigravity and other target adapter details after verification.
